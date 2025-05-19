@@ -54,6 +54,12 @@ impl Counter for TrieCounter {
     fn get(&self, v: &[usize]) -> Option<u64> {
         self.0.get(v)
     }
+
+    fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
+        self.0.for_each(|v, c| {
+            f(v, c);
+        });
+    }
 }
 
 pub struct Trie<T> {
