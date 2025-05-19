@@ -31,7 +31,7 @@ impl AprioriCounter for Vec<u64> {
         true
     }
 
-    fn insert(&mut self, v: &[usize]) {
+    fn insert(&mut self, _: &[usize]) {
         panic!("Should alreadby be inserted");
     }
 
@@ -66,9 +66,9 @@ pub trait AprioriFrequent {
         let mut map: AHashMap<Vec<usize>, Vec<usize>> = AHashMap::new();
         self.for_each(|v| {
             match map.get_mut(&v[..(v.len() - 1)]) {
-                Some(vec) => vec.push(v.last().unwrap().clone()),
+                Some(vec) => vec.push(*v.last().unwrap()),
                 None => {
-                    map.insert(v[..(v.len() - 1)].to_vec(), vec![v.last().unwrap().clone()]);
+                    map.insert(v[..(v.len() - 1)].to_vec(), vec![*v.last().unwrap()]);
                 }
             };
         });

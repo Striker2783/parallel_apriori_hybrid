@@ -1,7 +1,8 @@
 use crate::array2d::AprioriP2Counter;
-use crate::start::AprioriTwo;
+use crate::count::{AprioriCounting, Count};
+use crate::start::{AprioriGeneral, AprioriTwo};
 use crate::storage::{AprioriCounter, AprioriFrequent};
-use crate::trie::TrieSet;
+use crate::trie::{TrieCounter, TrieSet};
 use crate::{start::AprioriOne, transaction_set::TransactionSet};
 
 pub struct AprioriP1<'a> {
@@ -33,7 +34,7 @@ pub struct AprioriP2<'a> {
     sup: u64,
 }
 
-impl<'a> AprioriTwo for AprioriP2<'a> {
+impl AprioriTwo for AprioriP2<'_> {
     fn run_two(self) -> impl crate::storage::AprioriFrequent {
         let mut counter = AprioriP2Counter::new(self.data.num_items);
         for data in self.data.iter() {
@@ -52,15 +53,36 @@ impl<'a> AprioriP2<'a> {
         Self { data, sup }
     }
 }
+
+pub struct Apriori<'a> {
+    data: &'a TransactionSet,
+    sup: u64,
+}
+
+impl<'a> Apriori<'a> {
+    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
+        Self { data, sup }
+    }
+}
+
+impl AprioriGeneral for Apriori<'_> {
+    fn run(self, trie: &impl AprioriFrequent, n: usize) -> impl AprioriFrequent {
+        let mut trie: TrieCounter = trie.join_new();
+        let counter = AprioriCounting::new(self.data, &mut trie);
+        counter.count(n);
+        trie.to_frequent_new::<TrieSet>(self.sup)
+    }
+}
 #[cfg(test)]
 mod tests {
     use crate::{
-        start::{AprioriOne, AprioriTwo},
+        start::{AprioriGeneral, AprioriOne, AprioriTwo},
         storage::AprioriFrequent,
         transaction_set::TransactionSet,
+        trie::TrieSet,
     };
 
-    use super::{AprioriP1, AprioriP2};
+    use super::{Apriori, AprioriP1, AprioriP2};
 
     #[test]
     fn test_run_one() {
@@ -78,5 +100,17 @@ mod tests {
         let a = AprioriP2::new(&set, 2).run_two();
         assert_eq!(a.len(), 1);
         assert!(a.contains(&[2, 3]));
+    }
+    #[test]
+    fn test_run_general() {
+        let set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
+        let a = Apriori::new(&set, 2);
+        let mut frequent = TrieSet::new();
+        frequent.insert(&[1, 2]);
+        frequent.insert(&[1, 3]);
+        frequent.insert(&[2, 3]);
+        let f = a.run(&frequent, 3);
+        assert_eq!(f.len(), 1);
+        assert!(f.contains(&[1, 2, 3]));
     }
 }
