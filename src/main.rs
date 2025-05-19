@@ -1,3 +1,8 @@
+use mpi::Threading;
+
 fn main() {
-    println!("Hello, world!");
+    let (_universe, threading) = mpi::initialize_with_threading(Threading::Multiple).unwrap();
+    
+    assert_eq!(threading, mpi::environment::threading_support());
+    println!("Supported level of threading: {:?}", threading);
 }

@@ -5,3 +5,7 @@ edition = "2024"
 
 [dependencies]
 mpi = "0.8.0"
+apriori = { path = "crates/apriori" }
+
+[workspace]
+members = ["crates/apriori", "crates/parallel"]
