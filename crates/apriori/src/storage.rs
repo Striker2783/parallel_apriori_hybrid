@@ -1,3 +1,5 @@
+use ahash::AHashMap;
+
 pub trait Counter {
     fn increment(&mut self, v: &[usize]) -> bool;
     fn insert(&mut self, v: &[usize]);
@@ -55,6 +57,34 @@ pub trait Frequent {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+    fn join_new<T: Counter + Default>(&self) -> T {
+        let mut f = T::default();
+        self.join(&mut f);
+        f
+    }
+    fn join<T: Counter>(&self, counter: &mut T) {
+        let mut map: AHashMap<Vec<usize>, Vec<usize>> = AHashMap::new();
+        self.for_each(|v| {
+            match map.get_mut(&v[..(v.len() - 1)]) {
+                Some(vec) => vec.push(v.last().unwrap().clone()),
+                None => {
+                    map.insert(v[..(v.len() - 1)].to_vec(), vec![v.last().unwrap().clone()]);
+                }
+            };
+        });
+        for (mut prefix, suffix) in map {
+            for (i, last1) in suffix.iter().cloned().enumerate() {
+                for last2 in suffix.iter().skip(i + 1).cloned() {
+                    let (min, max) = (last1.min(last2), last1.max(last2));
+                    prefix.push(min);
+                    prefix.push(max);
+                    counter.insert(&prefix);
+                    prefix.pop();
+                    prefix.pop();
+                }
+            }
+        }
+    }
 }
 
 impl Frequent for Vec<bool> {
@@ -79,5 +109,27 @@ impl Frequent for Vec<bool> {
 
     fn len(&self) -> usize {
         self.iter().filter(|b| **b).count()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        storage::Counter,
+        trie::{TrieCounter, TrieSet},
+    };
+
+    use super::Frequent;
+
+    #[test]
+    fn test_join() {
+        let mut trie = TrieSet::new();
+        trie.insert(&[1, 2]);
+        trie.insert(&[1, 3]);
+        trie.insert(&[2, 3]);
+        let join = trie.join_new::<TrieCounter>();
+        assert_eq!(join.get(&[1, 2]), Some(0));
+        assert_eq!(join.get(&[1, 2, 3]), Some(0));
+        assert_eq!(join.get(&[2, 3]), None);
     }
 }

@@ -37,9 +37,15 @@ impl Frequent for TrieSet {
 
 pub struct TrieCounter(Trie<u64>);
 
+impl Default for TrieCounter {
+    fn default() -> Self {
+        Self(Trie::new(0))
+    }
+}
+
 impl TrieCounter {
     pub fn new() -> Self {
-        Self(Trie::new(0))
+        Self::default()
     }
 }
 impl Counter for TrieCounter {
