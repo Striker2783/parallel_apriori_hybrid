@@ -1,5 +1,5 @@
 use crate::{start::AprioriOne, transaction_set::TransactionSet};
-use crate::{storage::Counter};
+use crate::{storage::AprioriCounter};
 
 pub struct AprioriP1<'a> {
     data: &'a TransactionSet,
@@ -12,7 +12,7 @@ impl<'a> AprioriP1<'a> {
     }
 }
 impl AprioriOne for AprioriP1<'_> {
-    fn run_one(self) -> impl crate::storage::Frequent {
+    fn run_one(self) -> impl crate::storage::AprioriFrequent {
         let mut counter = vec![0u64; self.data.num_items];
         for data in self.data.iter() {
             for &i in data {
@@ -26,7 +26,7 @@ impl AprioriOne for AprioriP1<'_> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::{start::AprioriOne, storage::Frequent, transaction_set::TransactionSet};
+    use crate::{start::AprioriOne, storage::AprioriFrequent, transaction_set::TransactionSet};
 
     use super::AprioriP1;
 

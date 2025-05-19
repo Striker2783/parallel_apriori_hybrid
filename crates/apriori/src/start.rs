@@ -1,12 +1,12 @@
-use crate::storage::{Counter, Frequent};
+use crate::storage::{AprioriCounter, AprioriFrequent};
 
 pub trait AprioriOne {
-    fn run_one(self) -> impl Frequent;
+    fn run_one(self) -> impl AprioriFrequent;
 }
 pub trait AprioriTwo {
-    fn run_two(self) -> impl Frequent;
+    fn run_two(self) -> impl AprioriFrequent;
 }
 
-pub trait AprioriCounter {
-    fn run(self) -> impl Counter;
+pub trait Apriori {
+    fn run(self) -> impl AprioriCounter;
 }

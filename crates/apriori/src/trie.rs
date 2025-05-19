@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use ahash::AHashMap;
 
-use crate::storage::{Counter, Frequent};
+use crate::storage::{AprioriCounter, AprioriFrequent};
 
 pub struct TrieSet(Trie<bool>, usize);
 
@@ -11,7 +11,7 @@ impl TrieSet {
         Self(Trie::new(false), 0)
     }
 }
-impl Frequent for TrieSet {
+impl AprioriFrequent for TrieSet {
     fn for_each(&self, mut f: impl FnMut(&[usize])) {
         self.0.for_each(|v, b| {
             if b {
@@ -48,7 +48,7 @@ impl TrieCounter {
         Self::default()
     }
 }
-impl Counter for TrieCounter {
+impl AprioriCounter for TrieCounter {
     fn increment(&mut self, v: &[usize]) -> bool {
         self.0.increment(v)
     }
@@ -57,7 +57,7 @@ impl Counter for TrieCounter {
         self.0.insert(v, 0);
     }
 
-    fn get(&self, v: &[usize]) -> Option<u64> {
+    fn get_count(&self, v: &[usize]) -> Option<u64> {
         self.0.get(v)
     }
 
@@ -171,7 +171,7 @@ impl<T> TrieNode<T> {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::storage::{Counter, Frequent};
+    use crate::storage::{AprioriCounter, AprioriFrequent};
 
     use super::{TrieCounter, TrieSet};
 
@@ -180,16 +180,16 @@ mod tests {
         let mut trie = TrieCounter::new();
         assert!(!trie.increment(&[0]));
         trie.insert(&[1, 2]);
-        assert_eq!(trie.get(&[1]), Some(0));
-        assert_eq!(trie.get(&[1, 2]), Some(0));
-        assert_eq!(trie.get(&[1, 2, 3]), None);
+        assert_eq!(trie.get_count(&[1]), Some(0));
+        assert_eq!(trie.get_count(&[1, 2]), Some(0));
+        assert_eq!(trie.get_count(&[1, 2, 3]), None);
         trie.increment(&[1, 2, 3]);
-        assert_eq!(trie.get(&[1]), Some(0));
-        assert_eq!(trie.get(&[1, 2]), Some(0));
-        assert_eq!(trie.get(&[1, 2, 3]), None);
+        assert_eq!(trie.get_count(&[1]), Some(0));
+        assert_eq!(trie.get_count(&[1, 2]), Some(0));
+        assert_eq!(trie.get_count(&[1, 2, 3]), None);
         trie.increment(&[1, 2]);
-        assert_eq!(trie.get(&[1]), Some(0));
-        assert_eq!(trie.get(&[1, 2]), Some(1));
+        assert_eq!(trie.get_count(&[1]), Some(0));
+        assert_eq!(trie.get_count(&[1, 2]), Some(1));
     }
     #[test]
     fn test_trie_set() {
