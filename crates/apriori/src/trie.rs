@@ -6,9 +6,15 @@ use crate::storage::{AprioriCounter, AprioriFrequent};
 
 pub struct TrieSet(Trie<bool>, usize);
 
+impl Default for TrieSet {
+    fn default() -> Self {
+        Self(Trie::new(false), 0)
+    }
+}
+
 impl TrieSet {
     pub fn new() -> Self {
-        Self(Trie::new(false), 0)
+        Self::default()
     }
 }
 impl AprioriFrequent for TrieSet {
