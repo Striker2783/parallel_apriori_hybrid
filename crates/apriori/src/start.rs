@@ -1,12 +1,18 @@
+use std::io::Write;
+
 use crate::storage::AprioriFrequent;
 
-pub trait AprioriOne {
-    fn run_one(self) -> impl AprioriFrequent;
+pub trait AprioriOne<T: AprioriFrequent> {
+    fn run_one(self) -> T;
 }
-pub trait AprioriTwo {
-    fn run_two(self) -> impl AprioriFrequent;
+pub trait AprioriTwo<T: AprioriFrequent> {
+    fn run_two(self) -> T;
 }
 
-pub trait AprioriGeneral {
-    fn run(self, counter: &impl AprioriFrequent, n: usize) -> impl AprioriFrequent;
+pub trait AprioriGeneral<T: AprioriFrequent> {
+    fn run(self, counter: &impl AprioriFrequent, n: usize) -> T;
+}
+
+pub trait Apriori {
+    fn run<T: Write>(self, out: &mut T);
 }
