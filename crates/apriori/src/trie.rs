@@ -2,7 +2,7 @@ use std::ops::{Deref, DerefMut};
 
 use ahash::AHashMap;
 
-use crate::storage::{AprioriCounter, AprioriFrequent};
+use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent};
 
 pub struct TrieSet(Trie<bool>, usize);
 
@@ -41,11 +41,22 @@ impl AprioriFrequent for TrieSet {
     }
 }
 
-pub struct TrieCounter(Trie<u64>);
+pub struct TrieCounter(Trie<u64>, usize);
+
+impl AprioriCounterMut for TrieCounter {
+    fn for_each_mut(&mut self, mut f: impl FnMut(&[usize], &mut u64)) {
+        self.0.for_each_mut(|v, b| {
+            f(v, b);
+        });
+    }
+    fn len(&self) -> usize {
+        self.1
+    }
+}
 
 impl Default for TrieCounter {
     fn default() -> Self {
-        Self(Trie::new(0))
+        Self(Trie::new(0), 0)
     }
 }
 
@@ -61,6 +72,7 @@ impl AprioriCounter for TrieCounter {
 
     fn insert(&mut self, v: &[usize]) {
         self.0.insert(v, 0);
+        self.1 += 1;
     }
 
     fn get_count(&self, v: &[usize]) -> Option<u64> {
@@ -132,6 +144,22 @@ impl<T: Copy> TrieNode<T> {
         for (&k, v) in &self.children {
             stack.push(k);
             v.for_each_helper(stack, f);
+            stack.pop();
+        }
+    }
+    pub fn for_each_mut(&mut self, mut f: impl FnMut(&[usize], &mut T)) {
+        let mut stack = vec![];
+        self.for_each_mut_helper(&mut stack, &mut f);
+    }
+    fn for_each_mut_helper(
+        &mut self,
+        stack: &mut Vec<usize>,
+        f: &mut impl FnMut(&[usize], &mut T),
+    ) {
+        f(stack, &mut self.value);
+        for (&k, v) in &mut self.children {
+            stack.push(k);
+            v.for_each_mut_helper(stack, f);
             stack.pop();
         }
     }

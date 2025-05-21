@@ -1,27 +1,52 @@
-use crate::{storage::AprioriCounter, transaction_set::TransactionSet};
+use crate::{storage::AprioriCounterMut, transaction_set::TransactionSet};
 
 pub trait Count {
     fn count(self, n: usize);
 }
 
-pub struct AprioriCounting<'a, T: AprioriCounter> {
+pub struct AprioriCounting<'a, T: AprioriCounterMut> {
     data: &'a TransactionSet,
     frequent: &'a mut T,
 }
 
-impl<'a, T: AprioriCounter> AprioriCounting<'a, T> {
+impl<'a, T: AprioriCounterMut> AprioriCounting<'a, T> {
     pub fn new(data: &'a TransactionSet, frequent: &'a mut T) -> Self {
         Self { data, frequent }
     }
 }
 
-impl<T: AprioriCounter> Count for AprioriCounting<'_, T> {
+impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
     fn count(self, n: usize) {
         for d in self.data.iter() {
-            let mut c = Combinations::new(n, d);
-            c.combinations(|v| {
-                self.frequent.increment(v);
-            });
+            let mut combinations =
+                ((d.len() - n + 1).max(n + 1)..=d.len()).fold(1f64, |acc, x| acc * (x as f64));
+            if combinations.is_finite() {
+                combinations /= (2..(d.len() - n + 1).min(n + 1)).fold(1f64, |a, n| a * (n as f64));
+            }
+            if (self.frequent.len() as f64) * (n as f64) > combinations {
+                let mut c = Combinations::new(n, d);
+                c.combinations(|v| {
+                    self.frequent.increment(v);
+                });
+            } else {
+                self.frequent.for_each_mut(|v, c| {
+                    if v.len() < n {
+                        return;
+                    }
+                    let mut iter = d.iter().cloned();
+                    'outer: for &a in v {
+                        for b in iter.by_ref() {
+                            match a.cmp(&b) {
+                                std::cmp::Ordering::Less => return,
+                                std::cmp::Ordering::Equal => continue 'outer,
+                                std::cmp::Ordering::Greater => continue,
+                            }
+                        }
+                        return;
+                    }
+                    *c += 1;
+                });
+            }
         }
     }
 }
