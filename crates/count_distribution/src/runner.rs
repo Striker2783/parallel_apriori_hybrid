@@ -67,7 +67,9 @@ impl HelperRunner {
         for n in 3.. {
             let a: (Vec<u64>, mpi::point_to_point::Status) =
                 self.uni.world().process_at_rank(0).receive_vec();
-            println!("Received {}", self.uni.world().rank());
+            if a.0[0] == u64::MAX {
+                break;
+            }
             let mut trie = TrieSet::new();
             trie.add_from_vec(&a.0);
             let mut counter: TrieCounter = trie.join_new();
@@ -92,7 +94,6 @@ impl<'a, T: Write> MainRunner<'a, T> {
 
     fn run(&mut self, mut p: TrieSet) {
         for _ in 3.. {
-            println!("PASS");
             let converted = p.to_vec();
             for i in 1..self.uni.world().size() {
                 self.uni.world().process_at_rank(i).send(&converted);
@@ -100,14 +101,18 @@ impl<'a, T: Write> MainRunner<'a, T> {
             let mut combined = TrieCounter::new();
             for i in 1..self.uni.world().size() {
                 let (v, _) = self.uni.world().process_at_rank(i).receive_vec();
-                println!("0 Received {i}");
                 combined.add_from_vec(&v);
             }
             p = combined.to_frequent_new(self.sup);
-            println!("{}", p.len());
             if p.is_empty() {
                 break;
             }
+            p.for_each(|v| {
+                self.writer.write_set(v);
+            });
+        }
+        for i in 1..self.uni.world().size() {
+            self.uni.world().process_at_rank(i).send(&[u64::MAX]);
         }
     }
     fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
