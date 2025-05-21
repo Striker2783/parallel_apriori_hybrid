@@ -79,6 +79,7 @@ name = "apriori"
 version = "0.1.0"
 dependencies = [
  "ahash",
+ "parallel",
 ]
 
 [[package]]

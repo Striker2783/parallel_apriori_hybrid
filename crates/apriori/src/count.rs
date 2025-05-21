@@ -18,6 +18,9 @@ impl<'a, T: AprioriCounterMut> AprioriCounting<'a, T> {
 impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
     fn count(self, n: usize) {
         for d in self.data.iter() {
+            if d.len() < n {
+                return;
+            }
             let mut combinations =
                 ((d.len() - n + 1).max(n + 1)..=d.len()).fold(1f64, |acc, x| acc * (x as f64));
             if combinations.is_finite() {

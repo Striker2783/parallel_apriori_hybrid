@@ -1,4 +1,4 @@
 pub trait Convertable {
-    fn to_vec(self) -> Vec<usize>;
-    fn from_vec(v: &[usize]) -> Self;
+    fn to_vec(self) -> Vec<u64>;
+    fn add_from_vec(&mut self, v: &[u64]);
 }

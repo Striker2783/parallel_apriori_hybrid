@@ -136,7 +136,7 @@ mod tests {
     fn test_run_one() {
         let set = TransactionSet::new(vec![vec![1, 2, 3], vec![2, 3]], 4);
         let a = AprioriP1::new(&set, 2).run_one();
-        assert_eq!(a.len(), 2);
+        assert_eq!(a.iter().filter(|&&b| b).count(), 2);
         assert!(!a.contains(&[0]));
         assert!(!a.contains(&[1]));
         assert!(a.contains(&[2]));

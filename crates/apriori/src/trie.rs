@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use ahash::AHashMap;
+use parallel::traits::Convertable;
 
 use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent};
 
@@ -42,6 +43,19 @@ impl AprioriFrequent for TrieSet {
 }
 
 pub struct TrieCounter(Trie<u64>, usize);
+
+impl Convertable for TrieCounter {
+    fn to_vec(mut self) -> Vec<u64> {
+        self.0.cleanup(0);
+        let mut v = Vec::new();
+        self.0.to_vec(&mut v);
+        v
+    }
+
+    fn add_from_vec(&mut self, v: &[u64]) {
+        self.0.add_from_vec(v);
+    }
+}
 
 impl AprioriCounterMut for TrieCounter {
     fn for_each_mut(&mut self, mut f: impl FnMut(&[usize], &mut u64)) {
@@ -190,14 +204,55 @@ impl TrieNode<u64> {
             false
         }
     }
+    pub fn to_vec(&self, v: &mut Vec<u64>) {
+        if self.children.is_empty() {
+            v.push(
+                self.value
+                    .checked_add(1 << 63)
+                    .expect("Overflow occurred in converting to vector due to count being > 2^63"),
+            );
+            return;
+        }
+        v.push(self.children.len() as u64);
+        for (&k, child) in self.children.iter() {
+            v.push(k as u64);
+            child.to_vec(v);
+        }
+    }
+    pub fn add_from_vec(&mut self, v: &[u64]) {
+        self.add_from_vec_helper(&mut v.iter().cloned());
+    }
+    fn add_from_vec_helper(&mut self, v: &mut impl Iterator<Item = u64>) {
+        let size = v.next().unwrap();
+        if size == 0 {
+            return;
+        } else if size >= 1 << 63 {
+            self.value = size - (1 << 63);
+            return;
+        }
+        for _ in 0..size {
+            let next = v.next().unwrap();
+            let mut child = TrieNode::new(0u64);
+            child.add_from_vec_helper(v);
+            self.children.insert(next as usize, Box::new(child));
+        }
+    }
 }
-
 impl<T> TrieNode<T> {
     fn new(value: T) -> Self {
         Self {
             children: AHashMap::new(),
             value,
         }
+    }
+}
+impl<T: Copy + Eq> TrieNode<T> {
+    pub fn cleanup(&mut self, empty: T) {
+        self.cleanup_helper(empty);
+    }
+    fn cleanup_helper(&mut self, empty: T) -> bool {
+        self.children.retain(|_, v| !v.cleanup_helper(empty));
+        self.children.is_empty() && self.value == empty
     }
 }
 
@@ -207,7 +262,7 @@ mod tests {
 
     use crate::storage::{AprioriCounter, AprioriFrequent};
 
-    use super::{TrieCounter, TrieSet};
+    use super::{Trie, TrieCounter, TrieSet};
 
     #[test]
     fn test_counter_trie() {
@@ -244,5 +299,28 @@ mod tests {
             assert!(set.remove(v));
         });
         assert!(set.is_empty());
+    }
+    #[test]
+    fn test_cleanup() {
+        let mut trie = Trie::new(0u64);
+        trie.insert(&[1, 2, 3], 0);
+        trie.insert(&[1, 2, 4], 1);
+        trie.cleanup(0);
+        assert!(!trie.contains(&[1, 2, 3]));
+        assert!(trie.contains(&[1, 2, 4]));
+    }
+    #[test]
+    fn test_convertable() {
+        let mut trie = Trie::new(0u64);
+        trie.insert(&[1, 2, 3], 2);
+        trie.insert(&[1, 2, 4], 5);
+        trie.insert(&[1, 3, 4], 6);
+        let mut v = Vec::new();
+        trie.to_vec(&mut v);
+        let mut trie = Trie::new(0u64);
+        trie.add_from_vec(&v);
+        assert_eq!(trie.get(&[1, 2, 3]), Some(2));
+        assert_eq!(trie.get(&[1, 2, 4]), Some(5));
+        assert_eq!(trie.get(&[1, 3, 4]), Some(6));
     }
 }
