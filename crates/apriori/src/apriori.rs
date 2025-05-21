@@ -3,7 +3,10 @@ use crate::count::{AprioriCounting, Count};
 use crate::start::{Apriori, AprioriGeneral, AprioriTwo};
 use crate::storage::{AprioriCounter, AprioriFrequent};
 use crate::trie::{TrieCounter, TrieSet};
-use crate::{start::AprioriOne, transaction_set::TransactionSet};
+use crate::{
+    start::{AprioriOne, Write},
+    transaction_set::TransactionSet,
+};
 
 pub struct AprioriRunner<'a> {
     data: &'a TransactionSet,
@@ -11,7 +14,7 @@ pub struct AprioriRunner<'a> {
 }
 
 impl Apriori for AprioriRunner<'_> {
-    fn run<T: std::io::Write>(self, out: &mut T) {
+    fn run<T: Write>(self, out: &mut T) {
         let mut prev = TrieSet::new();
         for i in 1.. {
             match i {
@@ -22,7 +25,7 @@ impl Apriori for AprioriRunner<'_> {
                         if !p1[i] {
                             continue;
                         }
-                        let _ = out.write(format!("{}\n", i).as_bytes());
+                        out.write_set(&[i]);
                     }
                     continue;
                 }
@@ -37,12 +40,7 @@ impl Apriori for AprioriRunner<'_> {
                 break;
             }
             prev.for_each(|v| {
-                let mut s = String::new();
-                for &n in v {
-                    s += format!("{n} ").as_str();
-                }
-                s += "\n";
-                let _ = out.write(s.as_bytes());
+                out.write_set(v);
             });
         }
     }
@@ -124,10 +122,9 @@ impl AprioriGeneral<TrieSet> for AprioriP3<'_> {
 }
 #[cfg(test)]
 mod tests {
-    use std::io::Cursor;
 
     use crate::{
-        start::{Apriori, AprioriGeneral, AprioriOne, AprioriTwo},
+        start::{Apriori, AprioriGeneral, AprioriOne, AprioriTwo, FrequentWriter},
         storage::AprioriFrequent,
         transaction_set::TransactionSet,
         trie::TrieSet,
@@ -168,10 +165,17 @@ mod tests {
     fn test_run_apriori() {
         let set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
         let a = AprioriRunner::new(&set, 2);
-        let mut s = Cursor::new(Vec::new());
+        let mut s = FrequentWriter::<TrieSet>::new();
         a.run(&mut s);
         let s = s.into_inner();
-        let s: String = s.into_iter().map(|b| b as char).collect();
-        println!("{s}");
+        assert!(s.contains(&[1, 2, 3]));
+        assert!(s.contains(&[1, 2]));
+        assert!(s.contains(&[1, 3]));
+        assert!(s.contains(&[2, 3]));
+        assert!(s.contains(&[1]));
+        assert!(s.contains(&[2]));
+        assert!(s.contains(&[3]));
+        assert!(!s.contains(&[0]));
+        assert_eq!(s.len(), 7);
     }
 }
