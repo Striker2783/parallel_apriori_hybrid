@@ -19,7 +19,7 @@ impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
     fn count(self, n: usize) {
         for d in self.data.iter() {
             if d.len() < n {
-                return;
+                continue;
             }
             let mut combinations =
                 ((d.len() - n + 1).max(n + 1)..=d.len()).fold(1f64, |acc, x| acc * (x as f64));
