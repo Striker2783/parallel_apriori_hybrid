@@ -7,6 +7,18 @@ use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent};
 
 pub struct TrieSet(Trie<bool>, usize);
 
+impl Convertable for TrieSet {
+    fn to_vec(self) -> Vec<u64> {
+        let mut v = Vec::new();
+        self.0.to_vec(&mut v);
+        v
+    }
+
+    fn add_from_vec(&mut self, v: &[u64]) {
+        todo!()
+    }
+}
+
 impl Default for TrieSet {
     fn default() -> Self {
         Self(Trie::new(false), 0)
@@ -192,6 +204,43 @@ impl<T: Copy> TrieNode<T> {
     }
 }
 
+impl TrieNode<bool> {
+    pub fn to_vec(&self, v: &mut Vec<u64>) {
+        if self.children.is_empty() {
+            let len = v.len();
+            let before = v[len - 1];
+            v[len - 1] = before
+                .checked_add(1 << 63)
+                .expect("Overflow occurred in converting to vector due to item id being > 2^63");
+            return;
+        }
+        v.push(self.children.len() as u64);
+        for (&k, child) in self.children.iter() {
+            v.push(k as u64);
+            child.to_vec(v);
+        }
+    }
+    pub fn add_from_vec(&mut self, v: &[u64]) {
+        self.add_from_vec_helper(&mut v.iter().cloned());
+    }
+    fn add_from_vec_helper(&mut self, v: &mut impl Iterator<Item = u64>) {
+        let size = v.next().unwrap();
+        if size == 0 {
+            return;
+        }
+        for _ in 0..size {
+            let mut next = v.next().unwrap();
+            let mut child = TrieNode::new(next >= 1 << 63);
+            if next < 1 << 63 {
+                child.add_from_vec_helper(v);
+            } else {
+                next -= 1 << 63;
+            }
+            self.children.insert(next as usize, Box::new(child));
+        }
+    }
+}
+
 impl TrieNode<u64> {
     pub fn increment(&mut self, v: &[usize]) -> bool {
         if v.is_empty() {
@@ -322,5 +371,17 @@ mod tests {
         assert_eq!(trie.get(&[1, 2, 3]), Some(2));
         assert_eq!(trie.get(&[1, 2, 4]), Some(5));
         assert_eq!(trie.get(&[1, 3, 4]), Some(6));
+
+        let mut trie = Trie::new(false);
+        trie.insert(&[1, 2, 3], true);
+        trie.insert(&[1, 2, 4], true);
+        trie.insert(&[1, 3, 4], true);
+        let mut v = Vec::new();
+        trie.to_vec(&mut v);
+        let mut trie = Trie::new(false);
+        trie.add_from_vec(&v);
+        assert_eq!(trie.get(&[1, 2, 3]), Some(true));
+        assert_eq!(trie.get(&[1, 2, 4]), Some(true));
+        assert_eq!(trie.get(&[1, 3, 4]), Some(true));
     }
 }
