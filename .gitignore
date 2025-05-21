@@ -1,1 +1,4 @@
 /target
+files/*
+*.data
+*.gz
