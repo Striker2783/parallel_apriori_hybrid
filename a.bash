@@ -12,9 +12,9 @@ case "$1" in
         # Add your test commands here
         ;;
     profile)
-        cargo build --profile profiling
+        cargo build --release
         shift
-        samply record ./target/profiling/data_mining $@
+        samply record mpirun ./target/release/parallel_apriori $@
         ;;
     parallel)
         cargo build --release

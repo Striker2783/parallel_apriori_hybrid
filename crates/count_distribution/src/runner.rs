@@ -52,8 +52,8 @@ struct HelperRunner {
 impl HelperRunner {
     pub fn new(data: &TransactionSet, uni: Universe) -> Self {
         let world = uni.world();
-        let count = data.len() / world.size() as usize;
-        let thread = world.rank() as usize;
+        let count = data.len() / (world.size() - 1) as usize;
+        let thread = world.rank() as usize - 1;
         let slice = if world.rank() == world.size() - 1 {
             &data.transactions[(count * thread)..data.len()]
         } else {
@@ -99,8 +99,8 @@ impl<'a, T: Write> MainRunner<'a, T> {
                 self.uni.world().process_at_rank(i).send(&converted);
             }
             let mut combined = TrieCounter::new();
-            for i in 1..self.uni.world().size() {
-                let (v, _) = self.uni.world().process_at_rank(i).receive_vec();
+            for _ in 1..self.uni.world().size() {
+                let (v, _) = self.uni.world().any_process().receive_vec();
                 combined.add_from_vec(&v);
             }
             p = combined.to_frequent_new(self.sup);

@@ -225,9 +225,6 @@ impl TrieNode<bool> {
     }
     fn add_from_vec_helper(&mut self, v: &mut impl Iterator<Item = u64>) {
         let size = v.next().unwrap();
-        if size == 0 {
-            return;
-        }
         for _ in 0..size {
             let mut next = v.next().unwrap();
             let mut is_end = false;
@@ -396,12 +393,14 @@ mod tests {
         trie2.insert(&[1, 2, 3], 2);
         trie2.insert(&[1, 2, 4], 5);
         trie2.insert(&[1, 3, 4], 6);
+        trie2.insert(&[1, 3, 5], 8);
         let mut v = Vec::new();
         trie2.to_vec(&mut v);
         trie.add_from_vec(&v);
         assert_eq!(trie.get(&[1, 2, 3]), Some(4));
         assert_eq!(trie.get(&[1, 2, 4]), Some(10));
         assert_eq!(trie.get(&[1, 3, 4]), Some(12));
+        assert_eq!(trie.get(&[1, 3, 5]), Some(8));
 
         let mut trie = Trie::new(false);
         trie.insert(&[1, 2, 3], true);
