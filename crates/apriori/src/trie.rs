@@ -15,7 +15,7 @@ impl Convertable for TrieSet {
     }
 
     fn add_from_vec(&mut self, v: &[u64]) {
-        todo!()
+        self.0.add_from_vec(v);
     }
 }
 
@@ -230,13 +230,26 @@ impl TrieNode<bool> {
         }
         for _ in 0..size {
             let mut next = v.next().unwrap();
-            let mut child = TrieNode::new(next >= 1 << 63);
-            if next < 1 << 63 {
-                child.add_from_vec_helper(v);
-            } else {
+            let mut is_end = false;
+            if next >= 1 << 63 {
+                is_end = true;
                 next -= 1 << 63;
             }
-            self.children.insert(next as usize, Box::new(child));
+            match self.children.get_mut(&(next as usize)) {
+                Some(child) => {
+                    child.value = is_end || child.value;
+                    if !is_end {
+                        child.add_from_vec_helper(v);
+                    }
+                }
+                None => {
+                    let mut child = TrieNode::new(is_end);
+                    if !is_end {
+                        child.add_from_vec_helper(v);
+                    }
+                    self.children.insert(next as usize, Box::new(child));
+                }
+            };
         }
     }
 }
@@ -276,14 +289,21 @@ impl TrieNode<u64> {
         if size == 0 {
             return;
         } else if size >= 1 << 63 {
-            self.value = size - (1 << 63);
+            self.value += size - (1 << 63);
             return;
         }
         for _ in 0..size {
             let next = v.next().unwrap();
-            let mut child = TrieNode::new(0u64);
-            child.add_from_vec_helper(v);
-            self.children.insert(next as usize, Box::new(child));
+            match self.children.get_mut(&(next as usize)) {
+                Some(child) => {
+                    child.add_from_vec_helper(v);
+                }
+                None => {
+                    let mut child = TrieNode::new(0);
+                    child.add_from_vec_helper(v);
+                    self.children.insert(next as usize, Box::new(child));
+                }
+            };
         }
     }
 }
@@ -371,6 +391,17 @@ mod tests {
         assert_eq!(trie.get(&[1, 2, 3]), Some(2));
         assert_eq!(trie.get(&[1, 2, 4]), Some(5));
         assert_eq!(trie.get(&[1, 3, 4]), Some(6));
+
+        let mut trie2 = Trie::new(0u64);
+        trie2.insert(&[1, 2, 3], 2);
+        trie2.insert(&[1, 2, 4], 5);
+        trie2.insert(&[1, 3, 4], 6);
+        let mut v = Vec::new();
+        trie2.to_vec(&mut v);
+        trie.add_from_vec(&v);
+        assert_eq!(trie.get(&[1, 2, 3]), Some(4));
+        assert_eq!(trie.get(&[1, 2, 4]), Some(10));
+        assert_eq!(trie.get(&[1, 3, 4]), Some(12));
 
         let mut trie = Trie::new(false);
         trie.insert(&[1, 2, 3], true);

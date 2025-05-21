@@ -212,6 +212,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "count_distribution"
+version = "0.1.0"
+dependencies = [
+ "apriori",
+ "mpi",
+ "parallel",
+]
+
+[[package]]
 name = "custom_derive"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -404,7 +413,9 @@ version = "0.1.0"
 dependencies = [
  "apriori",
  "clap",
+ "count_distribution",
  "mpi",
+ "parallel",
 ]
 
 [[package]]

@@ -9,7 +9,9 @@ debug = true
 [dependencies]
 mpi = "0.8.0"
 apriori = { path = "crates/apriori" }
+count_distribution = { path = "crates/count_distribution" }
+parallel = { path = "crates/parallel" }
 clap = { version = "4.5.38", features = ["derive"] }
 
 [workspace]
-members = ["crates/apriori", "crates/parallel"]
+members = ["crates/apriori", "crates/count_distribution", "crates/parallel"]

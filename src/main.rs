@@ -1,14 +1,14 @@
-use std::default;
+use apriori::apriori::AprioriRunner;
+use apriori::start::{Apriori, Write};
+use apriori::transaction_set::TransactionSet;
+use clap::Parser;
+use clap::*;
+use count_distribution::runner::CountDistribution;
+use parallel::traits::ParallelRun;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::PathBuf;
 use std::time::Instant;
-
-use apriori::apriori::AprioriRunner;
-use apriori::start::{Apriori, FrequentWriter, Write};
-use apriori::transaction_set::TransactionSet;
-use clap::Parser;
-use clap::*;
 
 #[derive(Parser)]
 pub struct Args {
@@ -23,6 +23,7 @@ pub struct Args {
 #[derive(Debug, Clone, ValueEnum)]
 pub enum Algorithms {
     Apriori,
+    CountDistribution,
 }
 
 pub struct Inputs<T: Write> {
@@ -61,7 +62,11 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
         Algorithms::Apriori => {
             let runner = AprioriRunner::new(&input.data, input.support_count);
             runner.run(&mut input.out);
-        },
+        }
+        Algorithms::CountDistribution => {
+            let runner = CountDistribution::new(&input.data, input.support_count, &mut input.out);
+            runner.run();
+        }
     }
 }
 

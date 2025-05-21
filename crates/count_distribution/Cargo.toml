@@ -1,0 +1,9 @@
+[package]
+name = "count_distribution"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+apriori = { path = "../apriori" }
+parallel = { path = "../parallel" }
+mpi = "0.8.0"

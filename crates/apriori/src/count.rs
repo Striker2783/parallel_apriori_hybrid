@@ -6,12 +6,12 @@ pub trait Count {
 
 pub struct AprioriCounting<'a, T: AprioriCounterMut> {
     data: &'a TransactionSet,
-    frequent: &'a mut T,
+    counter: &'a mut T,
 }
 
 impl<'a, T: AprioriCounterMut> AprioriCounting<'a, T> {
-    pub fn new(data: &'a TransactionSet, frequent: &'a mut T) -> Self {
-        Self { data, frequent }
+    pub fn new(data: &'a TransactionSet, counter: &'a mut T) -> Self {
+        Self { data, counter }
     }
 }
 
@@ -26,13 +26,13 @@ impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
             if combinations.is_finite() {
                 combinations /= (2..(d.len() - n + 1).min(n + 1)).fold(1f64, |a, n| a * (n as f64));
             }
-            if (self.frequent.len() as f64) * (n as f64) > combinations {
+            if (self.counter.len() as f64) * (n as f64) > combinations {
                 let mut c = Combinations::new(n, d);
                 c.combinations(|v| {
-                    self.frequent.increment(v);
+                    self.counter.increment(v);
                 });
             } else {
-                self.frequent.for_each_mut(|v, c| {
+                self.counter.for_each_mut(|v, c| {
                     if v.len() < n {
                         return;
                     }
