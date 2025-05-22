@@ -52,14 +52,33 @@ impl<T: TransactionID + Default> TransactionIDs<T> {
     }
     pub fn count<U: AprioriCounter>(&mut self, counter: &mut U) {
         for id in self.ids.iter_mut() {
-            let mut new = T::default();
-            id.join_fn(|v| {
-                if counter.increment(v) {
-                    new.insert(v);
-                }
-            });
+            let new = AprioriTIDCounter::new(id).count_new(counter);
             *id = new;
         }
+    }
+}
+
+pub struct AprioriTIDCounter<'a, T: TransactionID> {
+    id: &'a T,
+}
+
+impl<'a, T: TransactionID> AprioriTIDCounter<'a, T> {
+    pub fn new(id: &'a mut T) -> Self {
+        Self { id }
+    }
+    pub fn count<U: AprioriCounter>(self, new: &mut T, counter: &mut U) {
+        self.id.join_fn(|v| {
+            if counter.increment(v) {
+                new.insert(v);
+            }
+        });
+    }
+}
+impl<T: TransactionID + Default> AprioriTIDCounter<'_, T> {
+    pub fn count_new<U: AprioriCounter>(self, counter: &mut U) -> T {
+        let mut new = T::default();
+        self.count(&mut new, counter);
+        new
     }
 }
 
