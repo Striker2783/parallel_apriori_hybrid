@@ -116,7 +116,7 @@ impl<'a, T: Write> MainRunner<'a, T> {
         }
     }
     fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
-        let p1 = AprioriP1::new(data, self.sup).run_one();
+        let p1: Vec<_> = AprioriP1::new(data, self.sup).run_one();
         for i in 0..p1.len() {
             if !p1[i] {
                 continue;

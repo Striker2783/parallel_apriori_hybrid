@@ -13,10 +13,7 @@ impl<'a, T: AprioriCounterMut> AprioriCounting<'a, T> {
     pub fn new(data: &'a TransactionSet, counter: &'a mut T) -> Self {
         Self { data, counter }
     }
-}
-
-impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
-    fn count(self, n: usize) {
+    pub fn count_fn(self, n: usize, mut f: impl FnMut(&[usize])) {
         for d in self.data.iter() {
             if d.len() < n {
                 continue;
@@ -29,7 +26,9 @@ impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
             if (self.counter.len() as f64) * (n as f64) > combinations {
                 let mut c = Combinations::new(n, d);
                 c.combinations(|v| {
-                    self.counter.increment(v);
+                    if self.counter.increment(v) {
+                        f(v);
+                    }
                 });
             } else {
                 self.counter.for_each_mut(|v, c| {
@@ -47,10 +46,17 @@ impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
                         }
                         return;
                     }
+                    f(v);
                     *c += 1;
                 });
             }
         }
+    }
+}
+
+impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
+    fn count(self, n: usize) {
+        self.count_fn(n, |_| {});
     }
 }
 

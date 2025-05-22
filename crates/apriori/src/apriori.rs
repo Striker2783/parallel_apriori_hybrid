@@ -20,7 +20,7 @@ impl Apriori for AprioriRunner<'_> {
             match i {
                 0 => unreachable!(),
                 1 => {
-                    let p1 = AprioriP1::new(self.data, self.sup).run_one();
+                    let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
                     for i in 0..p1.len() {
                         if !p1[i] {
                             continue;
@@ -71,6 +71,19 @@ impl AprioriOne<Vec<bool>> for AprioriP1<'_> {
             }
         }
         let mut frequent = vec![false; self.data.num_items];
+        counter.to_frequent(&mut frequent, self.sup);
+        frequent
+    }
+}
+impl AprioriOne<TrieSet> for AprioriP1<'_> {
+    fn run_one(self) -> TrieSet {
+        let mut counter = vec![0u64; self.data.num_items];
+        for data in self.data.iter() {
+            for &i in data {
+                counter.increment(&[i]);
+            }
+        }
+        let mut frequent = TrieSet::new();
         counter.to_frequent(&mut frequent, self.sup);
         frequent
     }
@@ -135,7 +148,7 @@ mod tests {
     #[test]
     fn test_run_one() {
         let set = TransactionSet::new(vec![vec![1, 2, 3], vec![2, 3]], 4);
-        let a = AprioriP1::new(&set, 2).run_one();
+        let a: Vec<_> = AprioriP1::new(&set, 2).run_one();
         assert_eq!(a.iter().filter(|&&b| b).count(), 2);
         assert!(!a.contains(&[0]));
         assert!(!a.contains(&[1]));

@@ -12,6 +12,12 @@ apriori = { path = "crates/apriori" }
 count_distribution = { path = "crates/count_distribution" }
 parallel = { path = "crates/parallel" }
 clap = { version = "4.5.38", features = ["derive"] }
+apriori_tid = { path = "crates/apriori_tid" }
 
 [workspace]
-members = ["crates/apriori", "crates/count_distribution", "crates/parallel"]
+members = [
+    "crates/apriori",
+    "crates/apriori_tid",
+    "crates/count_distribution",
+    "crates/parallel",
+]

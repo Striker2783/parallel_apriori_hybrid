@@ -69,7 +69,7 @@ pub trait AprioriFrequent {
         self.join(&mut f);
         f
     }
-    fn join<T: AprioriCounter>(&self, counter: &mut T) {
+    fn join_fn<T: FnMut(&[usize])>(&self, mut f: T) {
         let mut map: AHashMap<Vec<usize>, Vec<usize>> = AHashMap::new();
         self.for_each(|v| {
             match map.get_mut(&v[..(v.len() - 1)]) {
@@ -85,12 +85,17 @@ pub trait AprioriFrequent {
                     let (min, max) = (last1.min(last2), last1.max(last2));
                     prefix.push(min);
                     prefix.push(max);
-                    counter.insert(&prefix);
+                    f(&prefix);
                     prefix.pop();
                     prefix.pop();
                 }
             }
         }
+    }
+    fn join<T: AprioriCounter>(&self, counter: &mut T) {
+        self.join_fn(|v| {
+            counter.insert(v);
+        });
     }
 }
 
