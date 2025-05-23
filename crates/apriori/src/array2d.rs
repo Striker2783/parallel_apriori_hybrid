@@ -21,6 +21,10 @@ impl AprioriCounter for AprioriP2Counter {
     fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
         self.0.iter().for_each(|(r, c, count)| f(&[c, r], count));
     }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 /// A lower triangle 2D square matrix in the form of a 1D array.
 #[derive(Debug, Default)]
@@ -55,6 +59,9 @@ impl<T> Array2D<T> {
     /// Iterator over all the element of the 2D array.
     pub fn iter(&self) -> Array2DIterator<T> {
         Array2DIterator::new(self)
+    }
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 impl Array2D<u64> {

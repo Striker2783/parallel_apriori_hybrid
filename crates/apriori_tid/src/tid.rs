@@ -41,7 +41,7 @@ impl<T: TransactionID + Default> TransactionIDs<T> {
     pub fn new(d: &TransactionSet) -> Self {
         let mut ids = Vec::new();
         for d in d.iter() {
-            ids.push(T::from_data(d, 1));
+            ids.push(T::from_data(d));
         }
         Self { ids }
     }
@@ -52,44 +52,35 @@ impl<T: TransactionID + Default> TransactionIDs<T> {
     }
     pub fn count<U: AprioriCounter>(&mut self, counter: &mut U) {
         for id in self.ids.iter_mut() {
-            let new = AprioriTIDCounter::new(id).count_new(counter);
-            *id = new;
+            *id = id.count_new(counter);
         }
     }
 }
 
-pub struct AprioriTIDCounter<'a, T: TransactionID> {
-    id: &'a T,
-}
-
-impl<'a, T: TransactionID> AprioriTIDCounter<'a, T> {
-    pub fn new(id: &'a mut T) -> Self {
-        Self { id }
-    }
-    pub fn count<U: AprioriCounter>(self, new: &mut T, counter: &mut U) {
-        self.id.join_fn(|v| {
-            if counter.increment(v) {
-                new.insert(v);
-            }
-        });
-    }
-}
-impl<T: TransactionID + Default> AprioriTIDCounter<'_, T> {
-    pub fn count_new<U: AprioriCounter>(self, counter: &mut U) -> T {
+pub trait TIDCount {
+    fn count<T: TransactionID, U: AprioriCounter>(&self, new: &mut T, counter: &mut U);
+    fn count_new<T: TransactionID + Default, U: AprioriCounter>(&self, counter: &mut U) -> T {
         let mut new = T::default();
         self.count(&mut new, counter);
         new
     }
 }
 
+impl<A: TransactionID> TIDCount for A {
+    fn count<T: TransactionID, U: AprioriCounter>(&self, new: &mut T, counter: &mut U) {
+        self.join_fn(|v| {
+            if counter.increment(v) {
+                new.insert(v);
+            }
+        });
+    }
+}
+
 pub trait TransactionID: AprioriFrequent {
-    fn from_data(data: &[usize], n: usize) -> Self;
+    fn from_data(data: &[usize]) -> Self;
 }
 impl TransactionID for TrieSet {
-    fn from_data(data: &[usize], n: usize) -> Self {
-        if n > 1 {
-            todo!()
-        }
+    fn from_data(data: &[usize]) -> Self {
         let mut s = Self::new();
         for &n in data {
             s.insert(&[n]);

@@ -75,9 +75,6 @@ impl AprioriCounterMut for TrieCounter {
             f(v, b);
         });
     }
-    fn len(&self) -> usize {
-        self.1
-    }
 }
 
 impl Default for TrieCounter {
@@ -92,6 +89,9 @@ impl TrieCounter {
     }
 }
 impl AprioriCounter for TrieCounter {
+    fn len(&self) -> usize {
+        self.1
+    }
     fn increment(&mut self, v: &[usize]) -> bool {
         self.0.increment(v)
     }

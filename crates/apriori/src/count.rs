@@ -1,9 +1,54 @@
-use crate::{storage::AprioriCounterMut, transaction_set::TransactionSet};
+use crate::{
+    storage::AprioriCounterMut,
+    transaction_set::TransactionSet,
+};
 
 pub trait Count {
     fn count(self, n: usize);
 }
-
+pub trait CountSlice {
+    fn count(&self, n: usize, counter: &mut impl AprioriCounterMut, f: impl FnMut(&[usize]));
+}
+impl CountSlice for [usize] {
+    fn count(&self, n: usize, counter: &mut impl AprioriCounterMut, mut f: impl FnMut(&[usize])) {
+        let d = self;
+        if d.len() < n {
+            return;
+        }
+        let mut combinations =
+            ((d.len() - n + 1).max(n + 1)..=d.len()).fold(1f64, |acc, x| acc * (x as f64));
+        if combinations.is_finite() {
+            combinations /= (2..(d.len() - n + 1).min(n + 1)).fold(1f64, |a, n| a * (n as f64));
+        }
+        if (counter.len() as f64) * (n as f64) > combinations {
+            let mut c = Combinations::new(n, d);
+            c.combinations(|v| {
+                if counter.increment(v) {
+                    f(v);
+                }
+            });
+        } else {
+            counter.for_each_mut(|v, c| {
+                if v.len() < n {
+                    return;
+                }
+                let mut iter = d.iter().cloned();
+                'outer: for &a in v {
+                    for b in iter.by_ref() {
+                        match a.cmp(&b) {
+                            std::cmp::Ordering::Less => return,
+                            std::cmp::Ordering::Equal => continue 'outer,
+                            std::cmp::Ordering::Greater => continue,
+                        }
+                    }
+                    return;
+                }
+                f(v);
+                *c += 1;
+            });
+        }
+    }
+}
 pub struct AprioriCounting<'a, T: AprioriCounterMut> {
     data: &'a TransactionSet,
     counter: &'a mut T,
@@ -15,41 +60,7 @@ impl<'a, T: AprioriCounterMut> AprioriCounting<'a, T> {
     }
     pub fn count_fn(self, n: usize, mut f: impl FnMut(&[usize])) {
         for d in self.data.iter() {
-            if d.len() < n {
-                continue;
-            }
-            let mut combinations =
-                ((d.len() - n + 1).max(n + 1)..=d.len()).fold(1f64, |acc, x| acc * (x as f64));
-            if combinations.is_finite() {
-                combinations /= (2..(d.len() - n + 1).min(n + 1)).fold(1f64, |a, n| a * (n as f64));
-            }
-            if (self.counter.len() as f64) * (n as f64) > combinations {
-                let mut c = Combinations::new(n, d);
-                c.combinations(|v| {
-                    if self.counter.increment(v) {
-                        f(v);
-                    }
-                });
-            } else {
-                self.counter.for_each_mut(|v, c| {
-                    if v.len() < n {
-                        return;
-                    }
-                    let mut iter = d.iter().cloned();
-                    'outer: for &a in v {
-                        for b in iter.by_ref() {
-                            match a.cmp(&b) {
-                                std::cmp::Ordering::Less => return,
-                                std::cmp::Ordering::Equal => continue 'outer,
-                                std::cmp::Ordering::Greater => continue,
-                            }
-                        }
-                        return;
-                    }
-                    f(v);
-                    *c += 1;
-                });
-            }
+            d.count(n,self.counter, |v| f(v));
         }
     }
 }

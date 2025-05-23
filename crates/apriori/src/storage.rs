@@ -24,13 +24,13 @@ pub trait AprioriCounter {
             }
         });
     }
-}
-pub trait AprioriCounterMut: AprioriCounter {
-    fn for_each_mut(&mut self, f: impl FnMut(&[usize], &mut u64));
     fn len(&self) -> usize;
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+}
+pub trait AprioriCounterMut: AprioriCounter {
+    fn for_each_mut(&mut self, f: impl FnMut(&[usize], &mut u64));
 }
 impl AprioriCounter for Vec<u64> {
     fn increment(&mut self, v: &[usize]) -> bool {
@@ -52,6 +52,10 @@ impl AprioriCounter for Vec<u64> {
             v[0] = i;
             f(&v, c);
         });
+    }
+
+    fn len(&self) -> usize {
+        self.len()
     }
 }
 

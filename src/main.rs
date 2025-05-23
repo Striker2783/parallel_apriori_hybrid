@@ -1,6 +1,7 @@
 use apriori::apriori::AprioriRunner;
 use apriori::start::{Apriori, Write};
 use apriori::transaction_set::TransactionSet;
+use apriori_tid::hybrid::AprioriHybrid;
 use apriori_tid::tid::AprioriTIDRunner;
 use clap::Parser;
 use clap::*;
@@ -26,6 +27,7 @@ pub enum Algorithms {
     Apriori,
     CountDistribution,
     AprioriTID,
+    AprioriHybrid,
 }
 
 pub struct Inputs<T: Write> {
@@ -73,6 +75,10 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             let runner = AprioriTIDRunner::new(&input.data, input.support_count);
             runner.run(&mut input.out);
         },
+        Algorithms::AprioriHybrid => {
+            let runner = AprioriHybrid::new(&input.data, input.support_count);
+            runner.run(&mut input.out);
+        }
     }
 }
 
