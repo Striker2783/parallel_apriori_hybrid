@@ -1,13 +1,12 @@
 use apriori::{
-    apriori::{AprioriP1, AprioriP2, AprioriP3},
-    count::{AprioriCounting, Count},
+    apriori::{AprioriP1, AprioriP2},
+    count::Count,
     start::{AprioriOne, AprioriTwo, Write},
     storage::{AprioriCounter, AprioriFrequent},
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
 use mpi::{
-    Rank,
     environment::Universe,
     traits::{Communicator, Destination, Source},
 };
@@ -73,8 +72,7 @@ impl HelperRunner {
             let mut trie = TrieSet::new();
             trie.add_from_vec(&a.0);
             let mut counter: TrieCounter = trie.join_new();
-            let a = AprioriCounting::new(&self.data, &mut counter);
-            a.count(n);
+            self.data.count(n, &mut counter);
             let v = counter.to_vec();
             self.uni.world().process_at_rank(0).send(&v);
         }

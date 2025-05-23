@@ -1,6 +1,6 @@
 use apriori::{
     apriori::{AprioriP1, AprioriP2},
-    count::CountSlice,
+    count::Count,
     start::{AprioriOne, AprioriTwo, Write},
     storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent},
     transaction_set::TransactionSet,
@@ -75,12 +75,12 @@ impl<T: TransactionID + Default> HybridTID<T> {
             HybridIDType::Normal(items) => {
                 if n >= 5 {
                     let mut new = T::default();
-                    items.count(n, counter, |v| {
+                    items.count_fn(n, counter, |v| {
                         new.insert(v);
                     });
                     self.id = HybridIDType::ID(new);
                 } else {
-                    items.count(n, counter, |_| {});
+                    items.count(n, counter);
                 }
             }
         }

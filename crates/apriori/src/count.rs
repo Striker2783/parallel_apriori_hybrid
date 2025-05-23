@@ -1,16 +1,29 @@
-use crate::{
-    storage::AprioriCounterMut,
-    transaction_set::TransactionSet,
-};
-
+use crate::{storage::AprioriCounterMut, transaction_set::TransactionSet};
 pub trait Count {
-    fn count(self, n: usize);
+    fn count_fn(&self, n: usize, counter: &mut impl AprioriCounterMut, f: impl FnMut(&[usize]));
+    fn count(&self, n: usize, counter: &mut impl AprioriCounterMut) {
+        self.count_fn(n, counter, |_| {});
+    }
 }
-pub trait CountSlice {
-    fn count(&self, n: usize, counter: &mut impl AprioriCounterMut, f: impl FnMut(&[usize]));
+impl Count for TransactionSet {
+    fn count_fn(
+        &self,
+        n: usize,
+        counter: &mut impl AprioriCounterMut,
+        mut f: impl FnMut(&[usize]),
+    ) {
+        for d in self.iter() {
+            d.count_fn(n, counter, |v| f(v));
+        }
+    }
 }
-impl CountSlice for [usize] {
-    fn count(&self, n: usize, counter: &mut impl AprioriCounterMut, mut f: impl FnMut(&[usize])) {
+impl Count for [usize] {
+    fn count_fn(
+        &self,
+        n: usize,
+        counter: &mut impl AprioriCounterMut,
+        mut f: impl FnMut(&[usize]),
+    ) {
         let d = self;
         if d.len() < n {
             return;
@@ -47,27 +60,6 @@ impl CountSlice for [usize] {
                 *c += 1;
             });
         }
-    }
-}
-pub struct AprioriCounting<'a, T: AprioriCounterMut> {
-    data: &'a TransactionSet,
-    counter: &'a mut T,
-}
-
-impl<'a, T: AprioriCounterMut> AprioriCounting<'a, T> {
-    pub fn new(data: &'a TransactionSet, counter: &'a mut T) -> Self {
-        Self { data, counter }
-    }
-    pub fn count_fn(self, n: usize, mut f: impl FnMut(&[usize])) {
-        for d in self.data.iter() {
-            d.count(n,self.counter, |v| f(v));
-        }
-    }
-}
-
-impl<T: AprioriCounterMut> Count for AprioriCounting<'_, T> {
-    fn count(self, n: usize) {
-        self.count_fn(n, |_| {});
     }
 }
 
