@@ -77,7 +77,7 @@ impl<T: TransactionID + Default> HybridTID<T> {
                 self.id = HybridIDType::ID(new);
             }
             HybridIDType::Normal(items) => {
-                if self.prev < 1000 {
+                if self.prev < counter.len() as u64 / 10 {
                     let mut new = T::default();
                     items.count_fn(n, counter, |v| {
                         new.insert(v);
