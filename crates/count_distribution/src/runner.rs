@@ -1,6 +1,6 @@
 use apriori::{
     apriori::{AprioriP1, AprioriP2},
-    count::Count,
+    count::{Count, CountPrune},
     start::{AprioriOne, AprioriTwo, Write},
     storage::{AprioriCounter, AprioriFrequent},
     transaction_set::TransactionSet,
@@ -72,7 +72,7 @@ impl HelperRunner {
             let mut trie = TrieSet::new();
             trie.add_from_vec(&a.0);
             let mut counter: TrieCounter = trie.join_new();
-            self.data.count(n, &mut counter);
+            self.data.count_prune(n, &mut counter);
             let v = counter.to_vec();
             self.uni.world().process_at_rank(0).send(&v);
         }
