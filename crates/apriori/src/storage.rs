@@ -98,6 +98,16 @@ pub trait AprioriFrequent {
     }
     fn join<T: AprioriCounter>(&self, counter: &mut T) {
         self.join_fn(|v| {
+            let mut pruner: Vec<_> = v.iter().cloned().skip(1).collect();
+            if !self.contains(&pruner) {
+                return;
+            }
+            for i in 0..(pruner.len() - 2) {
+                pruner[i] = v[i];
+                if !self.contains(&pruner) {
+                    return;
+                }
+            }
             counter.insert(v);
         });
     }
