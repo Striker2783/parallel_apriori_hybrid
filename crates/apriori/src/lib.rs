@@ -1,3 +1,4 @@
+pub mod alone;
 pub mod apriori;
 pub mod array2d;
 pub mod count;

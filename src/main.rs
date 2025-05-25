@@ -1,3 +1,4 @@
+use apriori::alone::AprioriTrie;
 use apriori::apriori::AprioriRunner;
 use apriori::start::{Apriori, Write};
 use apriori::transaction_set::TransactionSet;
@@ -30,6 +31,7 @@ pub enum Algorithms {
     AprioriTID,
     AprioriHybrid,
     CountDistributionHybrid,
+    AprioriTrie,
 }
 
 pub struct Inputs<T: Write> {
@@ -82,8 +84,13 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             runner.run(&mut input.out);
         }
         Algorithms::CountDistributionHybrid => {
-            let runner = CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
+            let runner =
+                CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
             runner.run();
+        }
+        Algorithms::AprioriTrie => {
+            let runner = AprioriTrie::new(input.data, input.support_count);
+            runner.run(&mut input.out);
         }
     }
 }
