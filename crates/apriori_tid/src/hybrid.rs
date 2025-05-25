@@ -60,12 +60,12 @@ pub enum HybridIDType<T: TransactionID> {
 
 pub struct HybridTID<T: TransactionID> {
     id: HybridIDType<T>,
-    prev: u64,
+    change: bool,
 }
 
 impl<T: TransactionID + Default> HybridTID<T> {
     pub fn new(id: HybridIDType<T>) -> Self {
-        Self { id, prev: u64::MAX }
+        Self { id, change: false }
     }
     pub fn count<U: AprioriCounterMut>(&mut self, n: usize, counter: &mut U) {
         match &mut self.id {
@@ -77,7 +77,7 @@ impl<T: TransactionID + Default> HybridTID<T> {
                 self.id = HybridIDType::ID(new);
             }
             HybridIDType::Normal(items) => {
-                if self.prev < counter.len() as u64 / 10 {
+                if self.change {
                     let mut new = T::default();
                     items.count_fn(n, counter, |v| {
                         new.insert(v);
@@ -88,7 +88,9 @@ impl<T: TransactionID + Default> HybridTID<T> {
                     items.count_fn(n, counter, |_| {
                         prev += 1;
                     });
-                    self.prev = prev;
+                    if prev < counter.len() as u64 / 100 {
+                        self.change = true
+                    }
                 }
             }
         }
