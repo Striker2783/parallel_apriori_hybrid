@@ -21,6 +21,18 @@ impl AprioriTrie {
                 let mut next = Trie::new();
                 prev.join(
                     |v| {
+                        if v.len() > 2 {
+                            let mut pruner: Vec<_> = v.iter().cloned().skip(1).collect();
+                            if !prev.contains(&pruner) {
+                                return;
+                            }
+                            for i in 0..(pruner.len() - 2) {
+                                pruner[i] = v[i];
+                                if !prev.contains(&pruner) {
+                                    return;
+                                }
+                            }
+                        }
                         next.add(v);
                     },
                     k - 1,
@@ -71,7 +83,7 @@ impl Trie {
         self.len() == 0
     }
 
-    pub fn join(&mut self, mut f: impl FnMut(&[usize]), k: usize) {
+    pub fn join(&self, mut f: impl FnMut(&[usize]), k: usize) {
         let mut v = Vec::new();
         self.root.join(&mut v, &mut f, k);
     }
@@ -108,6 +120,10 @@ impl Trie {
 
     pub fn get(&self, v: &[usize]) -> Option<u64> {
         self.root.get(v)
+    }
+
+    pub fn contains(&self, v: &[usize]) -> bool {
+        self.get(v).is_some()
     }
 
     pub fn for_each(&self, mut f: impl FnMut(&[usize]), k: usize) {
