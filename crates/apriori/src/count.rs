@@ -1,3 +1,5 @@
+use ahash::AHashMap;
+
 use crate::{storage::AprioriCounterMut, transaction_set::TransactionSet};
 pub trait Count {
     fn count_fn(&self, n: usize, counter: &mut impl AprioriCounterMut, f: impl FnMut(&[usize]));
@@ -62,7 +64,56 @@ impl Count for [usize] {
         }
     }
 }
-
+pub trait CountPrune {
+    fn count_prune_fn(
+        &mut self,
+        n: usize,
+        counter: &mut impl AprioriCounterMut,
+        f: impl FnMut(&[usize]),
+    );
+    fn count_prune(&mut self, n: usize, counter: &mut impl AprioriCounterMut) {
+        self.count_prune_fn(n, counter, |_| {});
+    }
+}
+impl CountPrune for Vec<usize> {
+    fn count_prune_fn(
+        &mut self,
+        n: usize,
+        counter: &mut impl AprioriCounterMut,
+        mut f: impl FnMut(&[usize]),
+    ) {
+        let mut map = AHashMap::new();
+        let mut total = 0;
+        self.count_fn(n, counter, |v| {
+            f(v);
+            total += 1;
+            for &value in v {
+                if let Some(count) = map.get_mut(&value) {
+                    *count += 1;
+                } else {
+                    map.insert(value, 1usize);
+                }
+            }
+        });
+        if total < n + 1 {
+            *self = Vec::new();
+        } else {
+            self.retain(|value| map.get(value).cloned().unwrap_or(0) >= n);
+        }
+    }
+}
+impl CountPrune for TransactionSet {
+    fn count_prune_fn(
+        &mut self,
+        n: usize,
+        counter: &mut impl AprioriCounterMut,
+        mut f: impl FnMut(&[usize]),
+    ) {
+        for d in self.iter_mut() {
+            d.count_prune_fn(n, counter, |v| f(v));
+        }
+    }
+}
 struct Combinations<'a> {
     stack: Vec<usize>,
     data: &'a [usize],

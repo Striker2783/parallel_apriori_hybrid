@@ -1,5 +1,5 @@
 use crate::array2d::AprioriP2Counter;
-use crate::count::Count;
+use crate::count::{Count, CountPrune};
 use crate::start::{Apriori, AprioriGeneral, AprioriTwo};
 use crate::storage::{AprioriCounter, AprioriFrequent};
 use crate::trie::{TrieCounter, TrieSet};
@@ -9,7 +9,7 @@ use crate::{
 };
 
 pub struct AprioriRunner<'a> {
-    data: &'a TransactionSet,
+    data: &'a mut TransactionSet,
     sup: u64,
 }
 
@@ -47,7 +47,7 @@ impl Apriori for AprioriRunner<'_> {
 }
 
 impl<'a> AprioriRunner<'a> {
-    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
+    pub fn new(data: &'a mut TransactionSet, sup: u64) -> Self {
         Self { data, sup }
     }
 }
@@ -115,12 +115,12 @@ impl<'a> AprioriP2<'a> {
 }
 
 pub struct AprioriP3<'a> {
-    data: &'a TransactionSet,
+    data: &'a mut TransactionSet,
     sup: u64,
 }
 
 impl<'a> AprioriP3<'a> {
-    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
+    pub fn new(data: &'a mut TransactionSet, sup: u64) -> Self {
         Self { data, sup }
     }
 }
@@ -128,7 +128,7 @@ impl<'a> AprioriP3<'a> {
 impl AprioriGeneral<TrieSet> for AprioriP3<'_> {
     fn run(self, trie: &impl AprioriFrequent, n: usize) -> TrieSet {
         let mut trie: TrieCounter = trie.join_new();
-        self.data.count(n, &mut trie);
+        self.data.count_prune(n, &mut trie);
         trie.to_frequent_new(self.sup)
     }
 }
@@ -163,8 +163,8 @@ mod tests {
     }
     #[test]
     fn test_run_general() {
-        let set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
-        let a = AprioriP3::new(&set, 2);
+        let mut set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
+        let a = AprioriP3::new(&mut set, 2);
         let mut frequent = TrieSet::new();
         frequent.insert(&[1, 2]);
         frequent.insert(&[1, 3]);
@@ -175,8 +175,8 @@ mod tests {
     }
     #[test]
     fn test_run_apriori() {
-        let set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
-        let a = AprioriRunner::new(&set, 2);
+        let mut set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
+        let a = AprioriRunner::new(&mut set, 2);
         let mut s = FrequentWriter::<TrieSet>::new();
         a.run(&mut s);
         let s = s.into_inner();

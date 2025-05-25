@@ -66,7 +66,7 @@ pub enum MainError {
 fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
     match v.algorithm {
         Algorithms::Apriori => {
-            let runner = AprioriRunner::new(&input.data, input.support_count);
+            let runner = AprioriRunner::new(&mut input.data, input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::CountDistribution => {
