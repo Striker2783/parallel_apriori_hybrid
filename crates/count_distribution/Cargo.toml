@@ -6,4 +6,5 @@ edition = "2024"
 [dependencies]
 apriori = { path = "../apriori" }
 parallel = { path = "../parallel" }
+apriori_tid = { path = "../apriori_tid" }
 mpi = "0.8.0"

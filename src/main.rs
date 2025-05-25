@@ -5,6 +5,7 @@ use apriori_tid::hybrid::AprioriHybrid;
 use apriori_tid::tid::AprioriTIDRunner;
 use clap::Parser;
 use clap::*;
+use count_distribution::hybridrunner::CountDistributionHybrid;
 use count_distribution::runner::CountDistribution;
 use parallel::traits::ParallelRun;
 use std::fs::File;
@@ -28,6 +29,7 @@ pub enum Algorithms {
     CountDistribution,
     AprioriTID,
     AprioriHybrid,
+    CountDistributionHybrid,
 }
 
 pub struct Inputs<T: Write> {
@@ -74,10 +76,14 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
         Algorithms::AprioriTID => {
             let runner = AprioriTIDRunner::new(&input.data, input.support_count);
             runner.run(&mut input.out);
-        },
+        }
         Algorithms::AprioriHybrid => {
             let runner = AprioriHybrid::new(&input.data, input.support_count);
             runner.run(&mut input.out);
+        }
+        Algorithms::CountDistributionHybrid => {
+            let runner = CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
+            runner.run();
         }
     }
 }
