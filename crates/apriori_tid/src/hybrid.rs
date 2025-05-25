@@ -1,6 +1,6 @@
 use apriori::{
     apriori::{AprioriP1, AprioriP2},
-    count::Count,
+    count::{Count, CountPrune},
     start::{AprioriOne, AprioriTwo, Write},
     storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent},
     transaction_set::TransactionSet,
@@ -85,10 +85,10 @@ impl<T: TransactionID + Default> HybridTID<T> {
                     self.id = HybridIDType::ID(new);
                 } else {
                     let mut prev = 0;
-                    items.count_fn(n, counter, |_| {
+                    items.count_prune_fn(n, counter, |_| {
                         prev += 1;
                     });
-                    if prev < counter.len() as u64 / 100 {
+                    if prev < 100 {
                         self.change = true
                     }
                 }
