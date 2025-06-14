@@ -1,0 +1,25 @@
+Bootstrap: docker
+From: rust
+Stage: build
+
+%post
+    apt update
+    apt install -y libopenmpi-dev clang
+    rustup update
+    cd /project
+    cargo build --release
+%files
+    . /project
+
+Bootstrap: docker
+From: ubuntu:24.04
+Stage: final
+
+%files from build
+    /project/target/release/parallel_apriori /p
+
+%post
+    apt update
+    apt install -y libopenmpi-dev openmpi-bin
+
+%environment
