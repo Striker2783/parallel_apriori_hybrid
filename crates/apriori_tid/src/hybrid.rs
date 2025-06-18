@@ -2,7 +2,7 @@ use apriori::{
     apriori::{AprioriP1, AprioriP2},
     count::{Count, CountPrune},
     start::{AprioriOne, AprioriTwo, Write},
-    storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent},
+    storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, AprioriFrequent},
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
@@ -67,7 +67,7 @@ impl<T: TransactionID + Default> HybridTID<T> {
     pub fn new(id: HybridIDType<T>) -> Self {
         Self { id, change: false }
     }
-    pub fn count<U: AprioriCounterMut>(&mut self, n: usize, counter: &mut U) {
+    pub fn count<U: AprioriCounterMut + AprioriCounting>(&mut self, n: usize, counter: &mut U) {
         match &mut self.id {
             HybridIDType::ID(ids) => {
                 if ids.is_empty() {
@@ -79,13 +79,13 @@ impl<T: TransactionID + Default> HybridTID<T> {
             HybridIDType::Normal(items) => {
                 if self.change {
                     let mut new = T::default();
-                    items.count_fn(n, counter, |v| {
+                    counter.count_fn(items, n, |v| {
                         new.insert(v);
                     });
                     self.id = HybridIDType::ID(new);
                 } else {
                     let mut prev = 0;
-                    items.count_prune_fn(n, counter, |_| {
+                    counter.count_fn(items, n, |_| {
                         prev += 1;
                     });
                     if prev < 100 {
@@ -111,7 +111,7 @@ impl<T: TransactionID + Default> HybridTIDs<T> {
                 .collect(),
         }
     }
-    pub fn count<U: AprioriCounterMut>(&mut self, n: usize, counter: &mut U) {
+    pub fn count<U: AprioriCounterMut + AprioriCounting>(&mut self, n: usize, counter: &mut U) {
         for id in self.ids.iter_mut() {
             id.count(n, counter);
         }
