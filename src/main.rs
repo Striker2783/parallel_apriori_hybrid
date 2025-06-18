@@ -3,7 +3,7 @@ use apriori::apriori::AprioriRunner;
 use apriori::start::{Apriori, Write};
 use apriori::transaction_set::TransactionSet;
 use apriori_tid::hybrid::AprioriHybrid;
-use apriori_tid::tid::AprioriTIDRunner;
+use apriori_tid::tid2::AprioriTIDRunner2;
 use clap::Parser;
 use clap::*;
 use count_distribution::hybridrunner::CountDistributionHybrid;
@@ -76,7 +76,7 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             runner.run();
         }
         Algorithms::AprioriTID => {
-            let runner = AprioriTIDRunner::new(&input.data, input.support_count);
+            let runner = AprioriTIDRunner2::new(&input.data, input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::AprioriHybrid => {

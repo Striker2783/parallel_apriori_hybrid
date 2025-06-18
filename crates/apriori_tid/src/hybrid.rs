@@ -1,6 +1,5 @@
 use apriori::{
     apriori::{AprioriP1, AprioriP2},
-    count::{Count, CountPrune},
     start::{AprioriOne, AprioriTwo, Write},
     storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, AprioriFrequent},
     transaction_set::TransactionSet,
