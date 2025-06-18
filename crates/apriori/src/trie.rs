@@ -3,7 +3,7 @@ use std::ops::{Deref, DerefMut};
 use ahash::AHashMap;
 use parallel::traits::Convertable;
 
-use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriFrequent};
+use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, AprioriFrequent};
 
 pub struct TrieSet(Trie<bool>, usize);
 
@@ -86,6 +86,11 @@ impl Default for TrieCounter {
 impl TrieCounter {
     pub fn new() -> Self {
         Self::default()
+    }
+}
+impl AprioriCounting for TrieCounter {
+    fn count_fn(&mut self, v: &[usize], n: usize, f: impl FnMut(&[usize])) {
+        self.0.count_fn(v, n, f);
     }
 }
 impl AprioriCounter for TrieCounter {
@@ -250,7 +255,12 @@ impl TrieNode<bool> {
         }
     }
 }
-
+impl AprioriCounting for TrieNode<u64> {
+    fn count_fn(&mut self, v: &[usize], n: usize, mut f: impl FnMut(&[usize])) {
+        let mut vec = Vec::new();
+        self.count_fn_helper(v, &mut vec, n, &mut |v| f(v));
+    }
+}
 impl TrieNode<u64> {
     pub fn increment(&mut self, v: &[usize]) -> bool {
         if v.is_empty() {
@@ -261,6 +271,26 @@ impl TrieNode<u64> {
             curr.increment(&v[1..])
         } else {
             false
+        }
+    }
+    fn count_fn_helper(
+        &mut self,
+        v: &[usize],
+        curr: &mut Vec<usize>,
+        ind: usize,
+        f: &mut impl FnMut(&[usize]),
+    ) {
+        if ind == 0 {
+            self.value += 1;
+            f(curr);
+            return;
+        }
+        for (i, &n) in v.iter().enumerate() {
+            if let Some(node) = self.children.get_mut(&n) {
+                curr.push(n);
+                node.count_fn_helper(&v[(i + 1)..], curr, ind - 1, f);
+                curr.pop();
+            }
         }
     }
     pub fn to_vec(&self, v: &mut Vec<u64>) {

@@ -1,7 +1,7 @@
 use crate::array2d::AprioriP2Counter;
 use crate::count::{Count, CountPrune};
 use crate::start::{Apriori, AprioriGeneral, AprioriTwo};
-use crate::storage::{AprioriCounter, AprioriFrequent};
+use crate::storage::{AprioriCounter, AprioriCounting, AprioriFrequent};
 use crate::trie::{TrieCounter, TrieSet};
 use crate::{
     start::{AprioriOne, Write},
@@ -128,7 +128,9 @@ impl<'a> AprioriP3<'a> {
 impl AprioriGeneral<TrieSet> for AprioriP3<'_> {
     fn run(self, trie: &impl AprioriFrequent, n: usize) -> TrieSet {
         let mut trie: TrieCounter = trie.join_new();
-        self.data.count_prune(n, &mut trie);
+        for d in self.data.iter() {
+            trie.count(d, n);
+        }
         trie.to_frequent_new(self.sup)
     }
 }

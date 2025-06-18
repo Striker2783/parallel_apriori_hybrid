@@ -138,6 +138,13 @@ impl AprioriFrequent for Vec<bool> {
     }
 }
 
+pub trait AprioriCounting {
+    fn count_fn(&mut self, v: &[usize], n: usize, f: impl FnMut(&[usize]));
+    fn count(&mut self, v: &[usize], n: usize) {
+        self.count_fn(v, n, |_| {});
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{
