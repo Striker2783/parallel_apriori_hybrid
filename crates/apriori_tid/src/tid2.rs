@@ -1,9 +1,15 @@
 use std::{
     collections::{HashMap, HashSet},
-    ops::Range, time::Instant,
+    ops::Range,
+    time::Instant,
 };
 
-use apriori::{start::Write, storage::Joinable, transaction_set::TransactionSet};
+use apriori::{
+    start::Write,
+    storage::{AprioriFrequent, Joinable},
+    transaction_set::TransactionSet,
+    trie::TrieSet,
+};
 
 pub struct AprioriTIDRunner2<'a> {
     data: &'a TransactionSet,
@@ -29,12 +35,11 @@ impl<'a> AprioriTIDRunner2<'a> {
                 writer.write_set(&a.items);
             }
         });
+        c.update_tree(self.sup);
         c.join_fn(|_| {});
         let mut transformed: TransformedDatabase = self.data.into();
         for _n in 2usize.. {
-            let now = Instant::now();
             transformed = transformed.count(&mut c);
-            println!("{_n}: Time: {:?}", now.elapsed());
             if c.prev.is_empty() {
                 break;
             }
@@ -43,6 +48,7 @@ impl<'a> AprioriTIDRunner2<'a> {
                     writer.write_set(&a.items);
                 }
             });
+            c.update_tree(self.sup);
             c.join_fn(|_| {});
         }
     }
@@ -127,6 +133,7 @@ impl Default for TransformedDatabase {
 
 pub struct Candidates {
     candidates: Vec<CandidateID>,
+    tree: TrieSet,
     prev: Range<usize>,
     sup: u64,
 }
@@ -137,9 +144,34 @@ impl Candidates {
     pub fn new(sup: u64) -> Self {
         Self {
             sup,
+            tree: TrieSet::new(),
             candidates: Vec::new(),
             prev: 0..0,
         }
+    }
+    pub fn update_tree(&mut self, sup: u64) {
+        for i in self.prev.clone() {
+            let c = &self.candidates[i];
+            if c.count >= sup {
+                self.tree.insert(&c.items);
+            }
+        }
+    }
+    fn prune(&self, v: &[usize]) -> bool {
+        let mut pruner: Vec<_> = v.iter().cloned().skip(1).collect();
+        if !self.tree.contains(&pruner) {
+            return true;
+        }
+        if pruner.len() < 2 {
+            return false;
+        }
+        for i in 0..(pruner.len() - 2) {
+            pruner[i] = v[i];
+            if !self.tree.contains(&pruner) {
+                return true;
+            }
+        }
+        false
     }
     pub fn push(&mut self, value: CandidateID) {
         let id = self.candidates.len();
@@ -185,9 +217,11 @@ impl Joinable<CandidateID> for Candidates {
                 for c2 in vec.iter().skip(i + 1) {
                     prefix.push(c1.0.min(c2.0));
                     prefix.push(c1.0.max(c2.0));
-                    let c = CandidateID::new(prefix.clone(), (c1.1, c2.1));
-                    f(c.clone());
-                    self.push(c);
+                    if !self.prune(&prefix) {
+                        let c = CandidateID::new(prefix.clone(), (c1.1, c2.1));
+                        f(c.clone());
+                        self.push(c);
+                    }
                     prefix.pop();
                     prefix.pop();
                 }

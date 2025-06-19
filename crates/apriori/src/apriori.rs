@@ -1,5 +1,4 @@
 use crate::array2d::AprioriP2Counter;
-use crate::count::{Count, CountPrune};
 use crate::start::{Apriori, AprioriGeneral, AprioriTwo};
 use crate::storage::{AprioriCounter, AprioriCounting, AprioriFrequent};
 use crate::trie::{TrieCounter, TrieSet};
