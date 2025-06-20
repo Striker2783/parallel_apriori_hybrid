@@ -1,4 +1,64 @@
+use std::collections::HashMap;
+
 use crate::storage::AprioriCounter;
+
+pub struct AprioriP2Counter2<'a> {
+    arr: Array2D<u64>,
+    reverse_map: HashMap<usize, usize>,
+    map: &'a [usize],
+}
+impl<'a> AprioriP2Counter2<'a> {
+    pub fn new(map: &'a [usize]) -> Self {
+        let reverse_map = map
+            .iter()
+            .cloned()
+            .enumerate()
+            .map(|(i, c)| (c, i))
+            .collect();
+        Self {
+            arr: Array2D::new(map.len()),
+            reverse_map,
+            map,
+        }
+    }
+}
+impl AprioriCounter for AprioriP2Counter2<'_> {
+    fn increment(&mut self, v: &[usize]) -> bool {
+        if let (Some(a), Some(b)) = (
+            self.reverse_map.get(&v[0]).cloned(),
+            self.reverse_map.get(&v[1]).cloned(),
+        ) {
+            self.increment(&[a, b]);
+            return true;
+        }
+        false
+    }
+
+    fn insert(&mut self, _: &[usize]) {
+        unimplemented!()
+    }
+
+    fn get_count(&self, v: &[usize]) -> Option<u64> {
+        if let (Some(a), Some(b)) = (
+            self.reverse_map.get(&v[0]).cloned(),
+            self.reverse_map.get(&v[1]).cloned(),
+        ) {
+            Some(self.arr.get(a, b))
+        } else {
+            None
+        }
+    }
+
+    fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
+        self.arr.iter().for_each(|(r, c, count)| {
+            f(&[self.map[c], self.map[r]], count);
+        });
+    }
+
+    fn len(&self) -> usize {
+        self.arr.len()
+    }
+}
 
 pub struct AprioriP2Counter(Array2D<u64>);
 impl AprioriP2Counter {

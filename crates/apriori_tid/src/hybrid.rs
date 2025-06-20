@@ -1,5 +1,5 @@
 use apriori::{
-    apriori::{AprioriP1, AprioriP2},
+    apriori::{AprioriP1, AprioriP2New},
     start::{AprioriOne, AprioriTwo, Write},
     storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, AprioriFrequent},
     transaction_set::TransactionSet,
@@ -19,28 +19,27 @@ impl<'a> AprioriHybrid<'a> {
     }
     pub fn run<T: Write>(self, out: &mut T) {
         let mut data = HybridTIDs::<TrieSet>::new(self.data);
+        let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
+        for i in 0..p1.len() {
+            if !p1[i] {
+                continue;
+            }
+            out.write_set(&[i]);
+        }
+        let p1: Vec<_> = p1
+            .iter()
+            .enumerate()
+            .filter(|(_, count)| **count)
+            .map(|(i, _)| i)
+            .collect();
         let mut prev = TrieSet::new();
         for n in 1.. {
-            match n {
-                0 => unreachable!(),
-                1 => {
-                    let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
-                    for i in 0..p1.len() {
-                        if !p1[i] {
-                            continue;
-                        }
-                        out.write_set(&[i]);
-                    }
-                    continue;
-                }
-                2 => {
-                    prev = AprioriP2::new(self.data, self.sup).run_two();
-                }
-                3.. => {
-                    let mut counter: TrieCounter = prev.join_new();
-                    data.count(n, &mut counter);
-                    prev = counter.to_frequent_new(self.sup);
-                }
+            if n == 2 {
+                prev = AprioriP2New::new(self.data, &p1, self.sup).run();
+            } else {
+                let mut counter: TrieCounter = prev.join_new();
+                data.count(n, &mut counter);
+                prev = counter.to_frequent_new(self.sup);
             }
             if prev.is_empty() {
                 break;
