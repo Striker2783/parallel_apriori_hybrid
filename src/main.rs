@@ -31,7 +31,6 @@ pub enum Algorithms {
     CountDistribution,
     AprioriTID,
     AprioriHybrid,
-    AprioriHybrid2,
     CountDistributionHybrid,
     AprioriTrie,
 }
@@ -82,10 +81,6 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             runner.run(&mut input.out);
         }
         Algorithms::AprioriHybrid => {
-            let runner = AprioriHybrid::new(&input.data, input.support_count);
-            runner.run(&mut input.out);
-        }
-        Algorithms::AprioriHybrid2 => {
             let runner = AprioriHybridRunner::new(&mut input.data, input.support_count);
             runner.run(&mut input.out);
         }

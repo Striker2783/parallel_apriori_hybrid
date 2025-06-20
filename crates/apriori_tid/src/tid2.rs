@@ -1,7 +1,6 @@
 use std::{
     collections::{HashMap, HashSet},
     ops::Range,
-    time::Instant,
 };
 
 use apriori::{
@@ -206,6 +205,10 @@ impl Candidates {
 
     pub fn candidates_mut(&mut self) -> &mut Vec<CandidateID> {
         &mut self.candidates
+    }
+
+    pub fn curr_len(&self) -> usize {
+        self.prev.len()
     }
 }
 

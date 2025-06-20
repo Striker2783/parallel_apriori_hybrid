@@ -1,9 +1,9 @@
 use apriori::{
     apriori::{AprioriP1, AprioriP2New, AprioriP3},
     start::{AprioriGeneral, AprioriOne, Write},
-    storage::{AprioriFrequent, Joinable},
+    storage::{AprioriCounter, AprioriCounting, AprioriFrequent, Joinable},
     transaction_set::TransactionSet,
-    trie::{AprioriTransition, TrieSet},
+    trie::{AprioriTransition, TrieCounter, TrieSet},
 };
 
 use crate::tid2::{CandidateID, Candidates, TransformedDatabase};
@@ -53,7 +53,6 @@ enum HybridCandidates {
     Apriori(TrieSet),
     Tid(Candidates, TransformedDatabase),
 }
-const SWITCH: usize = 5;
 pub struct AprioriHybridContainer {
     container: HybridCandidates,
     sup: u64,
@@ -78,8 +77,17 @@ impl AprioriHybridContainer {
     pub fn run(&mut self, data: &mut TransactionSet, n: usize) {
         match &mut self.container {
             HybridCandidates::Apriori(trie_set) => {
-                if n == SWITCH {
-                    let trie_set = AprioriP3::new(data, self.sup).run(trie_set, n);
+                let prev = trie_set.len();
+                let mut trie: TrieCounter = trie_set.join_new();
+                let mut total = 0;
+                for d in data.iter() {
+                    trie.count_fn(d, n, |_| {
+                        total += 1;
+                    });
+                }
+                *trie_set = trie.to_frequent_new(self.sup);
+                let curr = trie_set.len();
+                if curr < prev && total < 1_000_000_000 {
                     let mut transition = AprioriTransition::new();
                     let mut candidates = Candidates::new(self.sup);
                     trie_set.for_each(|v| {
@@ -92,8 +100,6 @@ impl AprioriHybridContainer {
                     candidates.update_tree(self.sup);
                     let transformed = TransformedDatabase::transition(data, &mut transition, n);
                     self.container = HybridCandidates::Tid(candidates, transformed);
-                } else {
-                    *trie_set = AprioriP3::new(data, self.sup).run(trie_set, n);
                 }
             }
             HybridCandidates::Tid(candidates, transformed) => {
