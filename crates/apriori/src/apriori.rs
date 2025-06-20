@@ -161,6 +161,7 @@ impl AprioriGeneral<TrieSet> for AprioriP3<'_> {
 mod tests {
 
     use crate::{
+        apriori::AprioriP2New,
         start::{Apriori, AprioriGeneral, AprioriOne, AprioriTwo, FrequentWriter},
         storage::AprioriFrequent,
         transaction_set::TransactionSet,
@@ -183,6 +184,9 @@ mod tests {
     fn test_run_two() {
         let set = TransactionSet::new(vec![vec![1, 2, 3], vec![2, 3]], 4);
         let a = AprioriP2::new(&set, 2).run_two();
+        assert_eq!(a.len(), 1);
+        assert!(a.contains(&[2, 3]));
+        let a = AprioriP2New::new(&set, &[1, 2, 3], 2).run();
         assert_eq!(a.len(), 1);
         assert!(a.contains(&[2, 3]));
     }

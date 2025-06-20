@@ -33,7 +33,7 @@ impl<'a> AprioriHybrid<'a> {
             .map(|(i, _)| i)
             .collect();
         let mut prev = TrieSet::new();
-        for n in 1.. {
+        for n in 2.. {
             if n == 2 {
                 prev = AprioriP2New::new(self.data, &p1, self.sup).run();
             } else {
