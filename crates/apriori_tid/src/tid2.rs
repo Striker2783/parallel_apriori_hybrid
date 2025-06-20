@@ -8,7 +8,7 @@ use apriori::{
     start::Write,
     storage::{AprioriFrequent, Joinable},
     transaction_set::TransactionSet,
-    trie::TrieSet,
+    trie::{AprioriTransition, TrieSet},
 };
 
 pub struct AprioriTIDRunner2<'a> {
@@ -53,7 +53,7 @@ impl<'a> AprioriTIDRunner2<'a> {
         }
     }
 }
-
+#[derive(Debug)]
 pub struct TransformedDatabase {
     v: Vec<HashSet<usize>>,
 }
@@ -73,6 +73,20 @@ impl std::ops::Deref for TransformedDatabase {
 }
 
 impl TransformedDatabase {
+    pub fn transition(data: &TransactionSet, transition: &mut AprioriTransition, n: usize) -> Self {
+        let mut a = Self::new();
+        for d in data.iter() {
+            let mut set = HashSet::new();
+            transition.count_fn(d, n, |i| {
+                set.insert(i);
+            });
+            if set.is_empty() {
+                continue;
+            }
+            a.push(set);
+        }
+        a
+    }
     pub fn count(&self, c: &mut Candidates) -> Self {
         let mut new = Self::new();
         for set in &self.v {
@@ -246,5 +260,25 @@ impl CandidateID {
             extensions: HashSet::new(),
             count: 0,
         }
+    }
+
+    pub fn generators(&self) -> (usize, usize) {
+        self.generators
+    }
+
+    pub fn extensions(&self) -> &HashSet<usize> {
+        &self.extensions
+    }
+
+    pub fn count(&self) -> u64 {
+        self.count
+    }
+
+    pub fn items(&self) -> &[usize] {
+        &self.items
+    }
+    
+    pub fn set_count(&mut self, count: u64) {
+        self.count = count;
     }
 }

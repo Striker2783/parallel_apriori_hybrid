@@ -117,6 +117,26 @@ impl AprioriCounter for TrieCounter {
     }
 }
 
+pub struct AprioriTransition(Trie<usize>);
+impl AprioriTransition {
+    pub fn new() -> Self {
+        Self(Trie::new(usize::MAX))
+    }
+    pub fn count_fn(&mut self, v: &[usize], n: usize, mut f: impl FnMut(usize)) {
+        let mut stack = Vec::new();
+        self.0.count_fn_helper(v, &mut stack, n, &mut |_, i| f(*i));
+    }
+    pub fn insert(&mut self, v: &[usize], i: usize) {
+        self.0.insert(v, i);
+    }
+}
+
+impl Default for AprioriTransition {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub struct Trie<T> {
     root: TrieNode<T>,
 }
@@ -258,7 +278,10 @@ impl TrieNode<bool> {
 impl AprioriCounting for TrieNode<u64> {
     fn count_fn(&mut self, v: &[usize], n: usize, mut f: impl FnMut(&[usize])) {
         let mut vec = Vec::new();
-        self.count_fn_helper(v, &mut vec, n, &mut |v| f(v));
+        self.count_fn_helper(v, &mut vec, n, &mut |v, c| {
+            *c += 1;
+            f(v);
+        });
     }
 }
 impl TrieNode<u64> {
@@ -271,26 +294,6 @@ impl TrieNode<u64> {
             curr.increment(&v[1..])
         } else {
             false
-        }
-    }
-    fn count_fn_helper(
-        &mut self,
-        v: &[usize],
-        curr: &mut Vec<usize>,
-        ind: usize,
-        f: &mut impl FnMut(&[usize]),
-    ) {
-        if ind == 0 {
-            self.value += 1;
-            f(curr);
-            return;
-        }
-        for (i, &n) in v.iter().enumerate() {
-            if let Some(node) = self.children.get_mut(&n) {
-                curr.push(n);
-                node.count_fn_helper(&v[(i + 1)..], curr, ind - 1, f);
-                curr.pop();
-            }
         }
     }
     pub fn to_vec(&self, v: &mut Vec<u64>) {
@@ -339,6 +342,25 @@ impl<T> TrieNode<T> {
         Self {
             children: AHashMap::new(),
             value,
+        }
+    }
+    fn count_fn_helper(
+        &mut self,
+        v: &[usize],
+        curr: &mut Vec<usize>,
+        ind: usize,
+        f: &mut impl FnMut(&[usize], &mut T),
+    ) {
+        if ind == 0 {
+            f(curr, &mut self.value);
+            return;
+        }
+        for (i, &n) in v.iter().enumerate() {
+            if let Some(node) = self.children.get_mut(&n) {
+                curr.push(n);
+                node.count_fn_helper(&v[(i + 1)..], curr, ind - 1, f);
+                curr.pop();
+            }
         }
     }
 }
