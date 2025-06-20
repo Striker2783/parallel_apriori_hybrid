@@ -28,7 +28,7 @@ impl AprioriCounter for AprioriP2Counter2<'_> {
             self.reverse_map.get(&v[0]).cloned(),
             self.reverse_map.get(&v[1]).cloned(),
         ) {
-            self.increment(&[a, b]);
+            self.arr.increment(a, b);
             return true;
         }
         false
@@ -183,7 +183,10 @@ impl<T: Copy> Iterator for Array2DIterator<'_, T> {
 }
 #[cfg(test)]
 mod tests {
-    use crate::array2d::Array2D;
+    use crate::{
+        array2d::{AprioriP2Counter2, Array2D},
+        storage::AprioriCounter,
+    };
 
     #[test]
     fn test_array2d() {
@@ -211,5 +214,21 @@ mod tests {
             assert_eq!(e.2, i as u64);
             assert_eq!(array2d.get(e.0, e.1), e.2);
         }
+    }
+    #[test]
+    fn test_apriori_pass2() {
+        let mut counter = AprioriP2Counter2::new(&[1, 3, 5]);
+        assert!(counter.increment(&[1, 3]));
+        assert!(counter.increment(&[3, 5]));
+        assert_eq!(counter.get_count(&[1, 3]), Some(1));
+        counter.for_each(|v, c| {
+            if v == [1, 3] || v == [3, 5] {
+                assert_eq!(c, 1);
+            } else if v == [1, 5] {
+                assert_eq!(c, 0);
+            } else {
+                panic!()
+            }
+        });
     }
 }
