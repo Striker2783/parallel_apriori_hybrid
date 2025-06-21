@@ -70,7 +70,6 @@ impl std::ops::Deref for TransformedDatabase {
         &self.v
     }
 }
-
 impl TransformedDatabase {
     pub fn transition(data: &TransactionSet, transition: &mut AprioriTransition, n: usize) -> Self {
         let mut a = Self::new();
@@ -94,10 +93,12 @@ impl TransformedDatabase {
                 let data = &c.candidates[n];
                 for &ext in &data.extensions {
                     let extended = &c.candidates[ext];
-                    if new_set.contains(&ext) {
-                        continue;
-                    }
-                    if set.contains(&extended.generators.0) && set.contains(&extended.generators.1)
+                    let other = if extended.generators.0 == n {
+                        extended.generators.1
+                    } else {
+                        extended.generators.0
+                    };
+                    if set.contains(&other)
                     {
                         new_set.insert(ext);
                     }
@@ -189,7 +190,7 @@ impl Candidates {
     pub fn push(&mut self, value: CandidateID) {
         let id = self.candidates.len();
         self.prev = self.prev.start..(self.prev.end + 1);
-        for g in [value.generators.0, value.generators.1] {
+        for g in [value.generators.0] {
             if g == usize::MAX {
                 continue;
             }
@@ -280,7 +281,7 @@ impl CandidateID {
     pub fn items(&self) -> &[usize] {
         &self.items
     }
-    
+
     pub fn set_count(&mut self, count: u64) {
         self.count = count;
     }

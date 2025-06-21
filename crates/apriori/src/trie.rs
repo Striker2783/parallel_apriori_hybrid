@@ -117,17 +117,23 @@ impl AprioriCounter for TrieCounter {
     }
 }
 
-pub struct AprioriTransition(Trie<usize>);
+pub struct AprioriTransition(Trie<(usize, u64)>);
 impl AprioriTransition {
     pub fn new() -> Self {
-        Self(Trie::new(usize::MAX))
+        Self(Trie::new((usize::MAX, 0)))
     }
     pub fn count_fn(&mut self, v: &[usize], n: usize, mut f: impl FnMut(usize)) {
         let mut stack = Vec::new();
-        self.0.count_fn_helper(v, &mut stack, n, &mut |_, i| f(*i));
+        self.0.count_fn_helper(v, &mut stack, n, &mut |_, i| {
+            i.1 += 1;
+            f(i.0)
+        });
     }
     pub fn insert(&mut self, v: &[usize], i: usize) {
-        self.0.insert(v, i);
+        self.0.insert(v, (i, 0));
+    }
+    pub fn for_each(&self, f: impl FnMut(&[usize], (usize, u64))) {
+        self.0.for_each(f);
     }
 }
 

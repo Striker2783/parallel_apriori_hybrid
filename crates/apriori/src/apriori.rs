@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use crate::array2d::{AprioriP2Counter, AprioriP2Counter2};
 use crate::start::{Apriori, AprioriGeneral, AprioriTwo};
 use crate::storage::{AprioriCounter, AprioriCounting, AprioriFrequent};
@@ -29,11 +31,13 @@ impl Apriori for AprioriRunner<'_> {
             .collect();
         let mut prev = TrieSet::new();
         for i in 2.. {
+            let prev_time = Instant::now();
             if i == 2 {
                 prev = AprioriP2New::new(self.data, &p1, self.sup).run();
             } else {
                 prev = AprioriP3::new(self.data, self.sup).run(&prev, i);
             }
+            println!("{i} {:?}", prev_time.elapsed());
             if prev.is_empty() {
                 break;
             }
