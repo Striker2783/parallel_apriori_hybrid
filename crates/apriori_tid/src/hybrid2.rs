@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use apriori::{
-    apriori::{AprioriP1, AprioriP2New, AprioriP3},
-    start::{AprioriGeneral, AprioriOne, Write},
+    apriori::AprioriPass1And2,
+    start::Write,
     storage::{AprioriCounter, AprioriCounting, AprioriFrequent, Joinable},
     transaction_set::TransactionSet,
     trie::{AprioriTransition, TrieCounter, TrieSet},
@@ -20,23 +20,7 @@ impl<'a> AprioriHybridRunner<'a> {
         Self { data, sup }
     }
     pub fn run<T: Write>(self, writer: &mut T) {
-        let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
-        for i in 0..p1.len() {
-            if !p1[i] {
-                continue;
-            }
-            writer.write_set(&[i]);
-        }
-        let p1: Vec<_> = p1
-            .iter()
-            .enumerate()
-            .filter(|(_, count)| **count)
-            .map(|(i, _)| i)
-            .collect();
-        let p2 = AprioriP2New::new(self.data, &p1, self.sup).run();
-        p2.for_each(|v| {
-            writer.write_set(v);
-        });
+        let p2 = AprioriPass1And2::new(self.sup, self.data).run(writer);
         let mut prev = AprioriHybridContainer::new(p2, self.sup);
         for n in 3.. {
             let prev_time = Instant::now();

@@ -1,55 +1,9 @@
 use apriori::{
-    apriori::{AprioriP1, AprioriP2New},
-    start::{AprioriOne, AprioriTwo, Write},
-    storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, AprioriFrequent},
+    storage::{AprioriCounterMut, AprioriCounting},
     transaction_set::TransactionSet,
-    trie::{TrieCounter, TrieSet},
 };
 
 use crate::tid::{TIDCount, TransactionID};
-
-pub struct AprioriHybrid<'a> {
-    data: &'a TransactionSet,
-    sup: u64,
-}
-
-impl<'a> AprioriHybrid<'a> {
-    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
-        Self { data, sup }
-    }
-    pub fn run<T: Write>(self, out: &mut T) {
-        let mut data = HybridTIDs::<TrieSet>::new(self.data);
-        let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
-        for i in 0..p1.len() {
-            if !p1[i] {
-                continue;
-            }
-            out.write_set(&[i]);
-        }
-        let p1: Vec<_> = p1
-            .iter()
-            .enumerate()
-            .filter(|(_, count)| **count)
-            .map(|(i, _)| i)
-            .collect();
-        let mut prev = TrieSet::new();
-        for n in 2.. {
-            if n == 2 {
-                prev = AprioriP2New::new(self.data, &p1, self.sup).run();
-            } else {
-                let mut counter: TrieCounter = prev.join_new();
-                data.count(n, &mut counter);
-                prev = counter.to_frequent_new(self.sup);
-            }
-            if prev.is_empty() {
-                break;
-            }
-            prev.for_each(|v| {
-                out.write_set(v);
-            });
-        }
-    }
-}
 
 pub enum HybridIDType<T: TransactionID> {
     ID(T),

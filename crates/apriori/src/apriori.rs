@@ -9,6 +9,36 @@ use crate::{
     transaction_set::TransactionSet,
 };
 
+pub struct AprioriPass1And2<'a> {
+    sup: u64,
+    data: &'a TransactionSet,
+}
+impl<'a> AprioriPass1And2<'a> {
+    pub fn new(sup: u64, data: &'a TransactionSet) -> Self {
+        Self { sup, data }
+    }
+    pub fn run(self, out: &mut impl Write) -> TrieSet {
+        let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
+        (0..p1.len()).for_each(|i| {
+            if !p1[i] {
+                return;
+            }
+            out.write_set(&[i]);
+        });
+        let p1: Vec<_> = p1
+            .iter()
+            .enumerate()
+            .filter(|(_, count)| **count)
+            .map(|(i, _)| i)
+            .collect();
+        let p2 = AprioriP2New::new(self.data, &p1, self.sup).run();
+        p2.for_each(|v| {
+            out.write_set(v);
+        });
+        p2
+    }
+}
+
 pub struct AprioriRunner<'a> {
     data: &'a mut TransactionSet,
     sup: u64,
@@ -16,27 +46,10 @@ pub struct AprioriRunner<'a> {
 
 impl Apriori for AprioriRunner<'_> {
     fn run<T: Write>(self, out: &mut T) {
-        let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
-        for i in 0..p1.len() {
-            if !p1[i] {
-                continue;
-            }
-            out.write_set(&[i]);
-        }
-        let p1: Vec<_> = p1
-            .iter()
-            .enumerate()
-            .filter(|(_, count)| **count)
-            .map(|(i, _)| i)
-            .collect();
-        let mut prev = TrieSet::new();
-        for i in 2.. {
+        let mut prev = AprioriPass1And2::new(self.sup, self.data).run(out);
+        for i in 3.. {
             let prev_time = Instant::now();
-            if i == 2 {
-                prev = AprioriP2New::new(self.data, &p1, self.sup).run();
-            } else {
-                prev = AprioriP3::new(self.data, self.sup).run(&prev, i);
-            }
+            prev = AprioriP3::new(self.data, self.sup).run(&prev, i);
             println!("{i} {:?}", prev_time.elapsed());
             if prev.is_empty() {
                 break;

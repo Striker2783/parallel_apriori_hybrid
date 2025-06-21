@@ -1,7 +1,6 @@
 use apriori::{
-    apriori::{AprioriP1, AprioriP2},
-    count::Count,
-    start::{AprioriOne, AprioriTwo, Write},
+    apriori::AprioriPass1And2,
+    start::Write,
     storage::{AprioriCounter, AprioriFrequent},
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
@@ -115,17 +114,10 @@ impl<'a, T: Write> MainRunner<'a, T> {
         }
     }
     fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
-        let p1: Vec<_> = AprioriP1::new(data, self.sup).run_one();
-        for i in 0..p1.len() {
-            if !p1[i] {
-                continue;
-            }
-            self.writer.write_set(&[i]);
+        struct Empty;
+        impl Write for Empty {
+            fn write_set(&mut self, _: &[usize]) {}
         }
-        let p2 = AprioriP2::new(data, self.sup).run_two();
-        p2.for_each(|v| {
-            self.writer.write_set(v);
-        });
-        p2
+        AprioriPass1And2::new(self.sup, data).run(&mut Empty)
     }
 }
