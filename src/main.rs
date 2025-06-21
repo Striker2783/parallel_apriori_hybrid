@@ -2,7 +2,6 @@ use apriori::alone::AprioriTrie;
 use apriori::apriori::AprioriRunner;
 use apriori::start::{Apriori, Write};
 use apriori::transaction_set::TransactionSet;
-use apriori_tid::hybrid::AprioriHybrid;
 use apriori_tid::hybrid2::AprioriHybridRunner;
 use apriori_tid::tid2::AprioriTIDRunner2;
 use clap::Parser;

@@ -5,10 +5,11 @@ use std::{
 
 use apriori::{
     start::Write,
-    storage::{AprioriFrequent, Joinable},
+    storage::{AprioriCounter, AprioriFrequent, Joinable},
     transaction_set::TransactionSet,
-    trie::{AprioriTransition, TrieSet},
+    trie::{AprioriTransition, TrieCounter, TrieSet},
 };
+use parallel::traits::Convertable;
 
 pub struct AprioriTIDRunner2<'a> {
     data: &'a TransactionSet,
@@ -98,8 +99,7 @@ impl TransformedDatabase {
                     } else {
                         extended.generators.0
                     };
-                    if set.contains(&other)
-                    {
+                    if set.contains(&other) {
                         new_set.insert(ext);
                     }
                 }
@@ -203,6 +203,11 @@ impl Candidates {
             f(&self.candidates[i])
         }
     }
+    pub fn for_each_range_mut(&mut self, mut f: impl FnMut(&mut CandidateID)) {
+        for i in self.prev.clone() {
+            f(&mut self.candidates[i])
+        }
+    }
 
     pub fn candidates_mut(&mut self) -> &mut Vec<CandidateID> {
         &mut self.candidates
@@ -212,7 +217,25 @@ impl Candidates {
         self.prev.len()
     }
 }
+impl Convertable for Candidates {
+    fn to_vec(&mut self) -> Vec<u64> {
+        let mut trie = TrieCounter::new();
+        self.for_each_range(|candidate| {
+            trie.add(&candidate.items, candidate.count);
+        });
+        trie.to_vec()
+    }
 
+    fn add_from_vec(&mut self, v: &[u64]) {
+        let mut trie = TrieCounter::new();
+        trie.add_from_vec(v);
+        self.for_each_range_mut(|candidate| {
+            if let Some(count) = trie.get_count(&candidate.items) {
+                candidate.count = count
+            }
+        });
+    }
+}
 impl Joinable<CandidateID> for Candidates {
     fn join_fn<U: FnMut(CandidateID)>(&mut self, mut f: U) {
         let mut map: HashMap<Vec<usize>, Vec<(usize, usize)>> = HashMap::new();

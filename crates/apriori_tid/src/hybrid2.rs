@@ -7,6 +7,7 @@ use apriori::{
     transaction_set::TransactionSet,
     trie::{AprioriTransition, TrieCounter, TrieSet},
 };
+use parallel::traits::Convertable;
 
 use crate::tid2::{CandidateID, Candidates, TransformedDatabase};
 
@@ -20,14 +21,17 @@ impl<'a> AprioriHybridRunner<'a> {
         Self { data, sup }
     }
     pub fn run<T: Write>(self, writer: &mut T) {
-        let p2 = AprioriPass1And2::new(self.sup, self.data).run(writer);
+        let p2 = AprioriPass1And2::new(self.sup, self.data).count(writer);
         let mut prev = AprioriHybridContainer::new(p2, self.sup);
         for n in 3.. {
             let prev_time = Instant::now();
             prev.run(self.data, n);
             println!("{n} {:?}", prev_time.elapsed());
             let mut total = 0;
-            prev.for_each(|v| {
+            prev.for_each(|v, c| {
+                if c < self.sup {
+                    return;
+                }
                 total += 1;
                 writer.write_set(v);
             });
@@ -38,7 +42,7 @@ impl<'a> AprioriHybridRunner<'a> {
     }
 }
 enum HybridCandidates {
-    Apriori(TrieSet),
+    Apriori(TrieCounter),
     Tid(Candidates, TransformedDatabase),
 }
 pub struct AprioriHybridContainer {
@@ -47,19 +51,19 @@ pub struct AprioriHybridContainer {
     prev: usize,
 }
 impl AprioriHybridContainer {
-    pub fn new(set: TrieSet, sup: u64) -> Self {
+    pub fn new(set: TrieCounter, sup: u64) -> Self {
         Self {
             container: HybridCandidates::Apriori(set),
             sup,
             prev: 0,
         }
     }
-    pub fn for_each(&self, mut f: impl FnMut(&[usize])) {
+    pub fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
         match &self.container {
             HybridCandidates::Apriori(trie_set) => trie_set.for_each(f),
             HybridCandidates::Tid(candidates, _) => candidates.for_each_range(|c| {
                 if c.count() >= self.sup {
-                    f(c.items())
+                    f(c.items(), c.count())
                 }
             }),
         }
@@ -68,7 +72,8 @@ impl AprioriHybridContainer {
         match &mut self.container {
             HybridCandidates::Apriori(trie_set) => {
                 let prev = self.prev;
-                let mut trie: TrieCounter = trie_set.join_new();
+                let trie: TrieSet = trie_set.to_frequent_new(self.sup);
+                let mut trie: TrieCounter = trie.join_new();
                 let mut total = 0;
                 self.prev = trie.len();
                 if self.prev < prev && prev < 100_000 {
@@ -96,13 +101,28 @@ impl AprioriHybridContainer {
                         total += 1;
                     });
                 }
-                *trie_set = trie.to_frequent_new(self.sup);
+                *trie_set = trie;
             }
             HybridCandidates::Tid(candidates, transformed) => {
                 candidates.join_fn(|_| {});
                 *transformed = transformed.count(candidates);
                 candidates.update_tree(self.sup);
             }
+        }
+    }
+}
+impl Convertable for AprioriHybridContainer {
+    fn to_vec(&mut self) -> Vec<u64> {
+        match &mut self.container {
+            HybridCandidates::Apriori(trie_counter) => trie_counter.to_vec(),
+            HybridCandidates::Tid(candidates, _) => candidates.to_vec(),
+        }
+    }
+
+    fn add_from_vec(&mut self, v: &[u64]) {
+        match &mut self.container {
+            HybridCandidates::Apriori(trie_counter) => trie_counter.add_from_vec(v),
+            HybridCandidates::Tid(candidates, _) => candidates.add_from_vec(v),
         }
     }
 }

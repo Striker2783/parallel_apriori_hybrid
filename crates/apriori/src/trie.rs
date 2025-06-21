@@ -8,7 +8,7 @@ use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, Apriori
 pub struct TrieSet(Trie<bool>, usize);
 
 impl Convertable for TrieSet {
-    fn to_vec(self) -> Vec<u64> {
+    fn to_vec(&mut self) -> Vec<u64> {
         let mut v = Vec::new();
         self.0.to_vec(&mut v);
         v
@@ -56,8 +56,14 @@ impl AprioriFrequent for TrieSet {
 
 pub struct TrieCounter(Trie<u64>, usize);
 
+impl TrieCounter {
+    pub fn add(&mut self, v: &[usize], c: u64) -> bool {
+        self.0.insert(v, c)
+    }
+}
+
 impl Convertable for TrieCounter {
-    fn to_vec(mut self) -> Vec<u64> {
+    fn to_vec(&mut self) -> Vec<u64> {
         self.0.cleanup(0);
         let mut v = Vec::new();
         self.0.to_vec(&mut v);
