@@ -221,6 +221,9 @@ impl Convertable for Candidates {
     fn to_vec(&mut self) -> Vec<u64> {
         let mut trie = TrieCounter::new();
         self.for_each_range(|candidate| {
+            if candidate.count() == 0 {
+                return;
+            }
             trie.add(&candidate.items, candidate.count);
         });
         trie.to_vec()

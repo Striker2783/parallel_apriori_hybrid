@@ -115,10 +115,6 @@ impl<'a, T: Write> MainRunner<'a, T> {
         }
     }
     fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
-        struct Empty;
-        impl Write for Empty {
-            fn write_set(&mut self, _: &[usize]) {}
-        }
-        AprioriPass1And2::new(self.sup, data).run(&mut Empty)
+        AprioriPass1And2::new(self.sup, data).run(self.writer)
     }
 }

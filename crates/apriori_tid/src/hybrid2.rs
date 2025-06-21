@@ -61,11 +61,25 @@ impl AprioriHybridContainer {
     pub fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
         match &self.container {
             HybridCandidates::Apriori(trie_set) => trie_set.for_each(f),
-            HybridCandidates::Tid(candidates, _) => candidates.for_each_range(|c| {
-                if c.count() >= self.sup {
-                    f(c.items(), c.count())
-                }
-            }),
+            HybridCandidates::Tid(candidates, _) => {
+                candidates.for_each_range(|c| f(c.items(), c.count()))
+            }
+        }
+    }
+    pub fn set(&mut self, set: &TrieSet) {
+        match &mut self.container {
+            HybridCandidates::Apriori(trie_counter) => {
+                set.for_each(|v| {
+                    trie_counter.add(v, self.sup);
+                });
+            }
+            HybridCandidates::Tid(candidates, _) => {
+                candidates.for_each_range_mut(|candidate| {
+                    if set.contains(candidate.items()) {
+                        candidate.set_count(self.sup);
+                    }
+                });
+            }
         }
     }
     pub fn run(&mut self, data: &mut TransactionSet, n: usize) {
@@ -88,11 +102,8 @@ impl AprioriHybridContainer {
                     });
                     let transformed = TransformedDatabase::transition(data, &mut transition, n);
                     transition.for_each(|_, (i, c)| {
-                        if c >= self.sup {
-                            candidates.candidates_mut()[i].set_count(c);
-                        }
+                        candidates.candidates_mut()[i].set_count(c);
                     });
-                    candidates.update_tree(self.sup);
                     self.container = HybridCandidates::Tid(candidates, transformed);
                     return;
                 }
@@ -104,9 +115,9 @@ impl AprioriHybridContainer {
                 *trie_set = trie;
             }
             HybridCandidates::Tid(candidates, transformed) => {
+                candidates.update_tree(self.sup);
                 candidates.join_fn(|_| {});
                 *transformed = transformed.count(candidates);
-                candidates.update_tree(self.sup);
             }
         }
     }
