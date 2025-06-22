@@ -5,7 +5,7 @@ use apriori::{
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
-use apriori_tid::{hybrid::HybridTIDs, hybrid2::AprioriHybridContainer};
+use apriori_tid::{hybrid::AprioriHybridContainer};
 use mpi::{
     environment::Universe,
     traits::{Communicator, Destination, Source},
