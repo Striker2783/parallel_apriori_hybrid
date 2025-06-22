@@ -1,8 +1,7 @@
 use apriori::{
-    apriori::{AprioriP1, AprioriP2},
-    count::{Count, CountPrune},
-    start::{AprioriOne, AprioriTwo, Write},
-    storage::{AprioriCounter, AprioriFrequent},
+    apriori::AprioriPass1And2,
+    start::Write,
+    storage::{AprioriCounter, AprioriCounting, AprioriFrequent},
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
@@ -72,7 +71,9 @@ impl HelperRunner {
             let mut trie = TrieSet::new();
             trie.add_from_vec(&a.0);
             let mut counter: TrieCounter = trie.join_new();
-            self.data.count_prune(n, &mut counter);
+            for d in self.data.iter() {
+                counter.count(d, n);
+            }
             let v = counter.to_vec();
             self.uni.world().process_at_rank(0).send(&v);
         }
@@ -114,17 +115,6 @@ impl<'a, T: Write> MainRunner<'a, T> {
         }
     }
     fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
-        let p1: Vec<_> = AprioriP1::new(data, self.sup).run_one();
-        for i in 0..p1.len() {
-            if !p1[i] {
-                continue;
-            }
-            self.writer.write_set(&[i]);
-        }
-        let p2 = AprioriP2::new(data, self.sup).run_two();
-        p2.for_each(|v| {
-            self.writer.write_set(v);
-        });
-        p2
+        AprioriPass1And2::new(self.sup, data).run(self.writer)
     }
 }

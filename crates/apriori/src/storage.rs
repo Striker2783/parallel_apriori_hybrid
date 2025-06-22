@@ -59,6 +59,13 @@ impl AprioriCounter for Vec<u64> {
     }
 }
 
+pub trait Joinable<T> {
+    fn join_fn<U: FnMut(T)>(&mut self, f: U);
+    fn join<U: FnMut(T)>(&mut self) {
+        self.join_fn(|_| {});
+    }
+}
+
 pub trait AprioriFrequent {
     fn for_each(&self, f: impl FnMut(&[usize]));
     fn contains(&self, v: &[usize]) -> bool;
@@ -135,6 +142,13 @@ impl AprioriFrequent for Vec<bool> {
 
     fn len(&self) -> usize {
         self.iter().filter(|b| **b).count()
+    }
+}
+
+pub trait AprioriCounting {
+    fn count_fn(&mut self, v: &[usize], n: usize, f: impl FnMut(&[usize]));
+    fn count(&mut self, v: &[usize], n: usize) {
+        self.count_fn(v, n, |_| {});
     }
 }
 

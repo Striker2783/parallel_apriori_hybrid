@@ -87,6 +87,7 @@ name = "apriori_tid"
 version = "0.1.0"
 dependencies = [
  "apriori",
+ "parallel",
 ]
 
 [[package]]
