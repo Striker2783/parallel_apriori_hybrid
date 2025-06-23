@@ -5,11 +5,15 @@ if [ $# -eq 0 ]; then
     echo "Usage: $0 {test|profile}"
     exit 1
 fi
-
+N=2500
 case "$1" in
     test)
-        echo "Running in test mode"
-        # Add your test commands here
+        while [ $N -gt 700 ]
+        do
+            # mpirun ./target/release/parallel_apriori files/T40.dat $N count-distribution-hybrid
+            cargo run --release -- files/T40.dat $N apriori-hybrid
+            N=$((N - 100))
+        done
         ;;
     profile)
         cargo build --release

@@ -49,6 +49,7 @@ pub struct AprioriHybridContainer {
     container: HybridCandidates,
     sup: u64,
     prev: usize,
+    prev_total: u64,
 }
 impl AprioriHybridContainer {
     pub fn new(set: TrieCounter, sup: u64) -> Self {
@@ -56,6 +57,7 @@ impl AprioriHybridContainer {
             container: HybridCandidates::Apriori(set),
             sup,
             prev: 0,
+            prev_total: u64::MAX,
         }
     }
     pub fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
@@ -90,7 +92,7 @@ impl AprioriHybridContainer {
                 let mut trie: TrieCounter = trie.join_new();
                 let mut total = 0;
                 self.prev = trie.len();
-                if self.prev < prev && prev < 100_000 {
+                if self.prev < prev && self.prev_total < 100_000_000 {
                     println!("SWITCH");
                     let mut transition = AprioriTransition::new();
                     let mut candidates = Candidates::new(self.sup);
@@ -113,6 +115,7 @@ impl AprioriHybridContainer {
                     });
                 }
                 *trie_set = trie;
+                self.prev_total = total;
             }
             HybridCandidates::Tid(candidates, transformed) => {
                 candidates.update_tree(self.sup);
