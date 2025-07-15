@@ -1,7 +1,6 @@
 use apriori::{
-    apriori::AprioriPass1And2,
     start::Write,
-    storage::{AprioriCounter, AprioriFrequent},
+    storage::AprioriFrequent,
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
@@ -11,6 +10,8 @@ use mpi::{
     traits::{Communicator, Destination, Source},
 };
 use parallel::traits::{Convertable, ParallelRun};
+
+use crate::runner::MainRunner;
 
 pub struct CountDistributionHybrid<'a, T: Write> {
     data: &'a TransactionSet,
@@ -91,46 +92,5 @@ impl HelperRunner {
             let v = self.container.to_vec();
             self.uni.world().process_at_rank(0).send(&v);
         }
-    }
-}
-
-struct MainRunner<'a, T: Write> {
-    sup: u64,
-    writer: &'a mut T,
-    uni: Universe,
-}
-
-impl<'a, T: Write> MainRunner<'a, T> {
-    fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
-        Self { sup, writer, uni }
-    }
-
-    fn run(&mut self, mut p: TrieSet) {
-        if !p.is_empty() {
-            for _ in 3.. {
-                let converted = p.to_vec();
-                for i in 1..self.uni.world().size() {
-                    self.uni.world().process_at_rank(i).send(&converted);
-                }
-                let mut combined = TrieCounter::new();
-                for _ in 1..self.uni.world().size() {
-                    let (v, _) = self.uni.world().any_process().receive_vec();
-                    combined.add_from_vec(&v);
-                }
-                p = combined.to_frequent_new(self.sup);
-                if p.is_empty() {
-                    break;
-                }
-                p.for_each(|v| {
-                    self.writer.write_set(v);
-                });
-            }
-            for i in 1..self.uni.world().size() {
-                self.uni.world().process_at_rank(i).send(&[u64::MAX]);
-            }
-        }
-    }
-    fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
-        AprioriPass1And2::new(self.sup, data).run(self.writer)
     }
 }

@@ -80,18 +80,18 @@ impl HelperRunner {
     }
 }
 
-struct MainRunner<'a, T: Write> {
+pub(crate) struct MainRunner<'a, T: Write> {
     sup: u64,
     writer: &'a mut T,
     uni: Universe,
 }
 
 impl<'a, T: Write> MainRunner<'a, T> {
-    fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
+    pub fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
         Self { sup, writer, uni }
     }
 
-    fn run(&mut self, mut p: TrieSet) {
+    pub fn run(&mut self, mut p: TrieSet) {
         if !p.is_empty() {
             for _ in 3.. {
                 let converted = p.to_vec();
@@ -116,7 +116,7 @@ impl<'a, T: Write> MainRunner<'a, T> {
             self.uni.world().process_at_rank(i).send(&[u64::MAX]);
         }
     }
-    fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
+    pub fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
         AprioriPass1And2::new(self.sup, data).run(self.writer)
     }
 }
