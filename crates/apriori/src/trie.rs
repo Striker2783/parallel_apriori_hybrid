@@ -148,7 +148,6 @@ impl Default for AprioriTransition {
         Self::new()
     }
 }
-
 pub struct Trie<T> {
     root: TrieNode<T>,
 }
@@ -174,7 +173,6 @@ impl<T> Deref for Trie<T> {
         &self.root
     }
 }
-
 pub struct TrieNode<T> {
     children: AHashMap<usize, Box<TrieNode<T>>>,
     value: T,
@@ -244,6 +242,10 @@ impl<T: Copy> TrieNode<T> {
 impl TrieNode<bool> {
     pub fn to_vec(&self, v: &mut Vec<u64>) {
         if self.children.is_empty() {
+            if v.is_empty() {
+                v.push(u64::MAX);
+                return;
+            }
             let len = v.len();
             let before = v[len - 1];
             v[len - 1] = before

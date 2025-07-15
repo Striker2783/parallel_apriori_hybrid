@@ -92,23 +92,25 @@ impl<'a, T: Write> MainRunner<'a, T> {
     }
 
     fn run(&mut self, mut p: TrieSet) {
-        for _ in 3.. {
-            let converted = p.to_vec();
-            for i in 1..self.uni.world().size() {
-                self.uni.world().process_at_rank(i).send(&converted);
+        if !p.is_empty() {
+            for _ in 3.. {
+                let converted = p.to_vec();
+                for i in 1..self.uni.world().size() {
+                    self.uni.world().process_at_rank(i).send(&converted);
+                }
+                let mut combined = TrieCounter::new();
+                for _ in 1..self.uni.world().size() {
+                    let (v, _) = self.uni.world().any_process().receive_vec();
+                    combined.add_from_vec(&v);
+                }
+                p = combined.to_frequent_new(self.sup);
+                if p.is_empty() {
+                    break;
+                }
+                p.for_each(|v| {
+                    self.writer.write_set(v);
+                });
             }
-            let mut combined = TrieCounter::new();
-            for _ in 1..self.uni.world().size() {
-                let (v, _) = self.uni.world().any_process().receive_vec();
-                combined.add_from_vec(&v);
-            }
-            p = combined.to_frequent_new(self.sup);
-            if p.is_empty() {
-                break;
-            }
-            p.for_each(|v| {
-                self.writer.write_set(v);
-            });
         }
         for i in 1..self.uni.world().size() {
             self.uni.world().process_at_rank(i).send(&[u64::MAX]);
