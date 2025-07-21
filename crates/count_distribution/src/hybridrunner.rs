@@ -8,7 +8,7 @@ use mpi::{
 };
 use parallel::traits::{Convertable, ParallelRun};
 
-use crate::runner::MainRunner;
+use crate::main_thread::MainRunner;
 
 pub struct CountDistributionHybrid<'a, T: Write> {
     data: &'a TransactionSet,
