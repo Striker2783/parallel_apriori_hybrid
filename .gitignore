@@ -2,3 +2,5 @@
 files/*
 *.data
 *.gz
+*.img
+*.sif

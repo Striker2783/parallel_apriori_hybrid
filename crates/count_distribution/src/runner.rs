@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use apriori::{
     apriori::AprioriPass1And2,
     start::Write,
@@ -33,7 +35,9 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
         let rank = universe.world().rank();
         if rank == 0 {
             let mut a = MainRunner::new(self.sup, self.writer, universe);
+            let temp = Instant::now();
             let b = a.preprocess(self.data);
+            println!("Preprocess {:?}", temp.elapsed());
             a.run(b);
         } else {
             let mut a = HelperRunner::new(self.data, universe);
@@ -80,41 +84,45 @@ impl HelperRunner {
     }
 }
 
-struct MainRunner<'a, T: Write> {
+pub(crate) struct MainRunner<'a, T: Write> {
     sup: u64,
     writer: &'a mut T,
     uni: Universe,
 }
 
 impl<'a, T: Write> MainRunner<'a, T> {
-    fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
+    pub fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
         Self { sup, writer, uni }
     }
 
-    fn run(&mut self, mut p: TrieSet) {
-        for _ in 3.. {
-            let converted = p.to_vec();
-            for i in 1..self.uni.world().size() {
-                self.uni.world().process_at_rank(i).send(&converted);
+    pub fn run(&mut self, mut p: TrieSet) {
+        if !p.is_empty() {
+            for i in 3.. {
+                let prev_time = Instant::now();
+                let converted = p.to_vec();
+                for i in 1..self.uni.world().size() {
+                    self.uni.world().process_at_rank(i).send(&converted);
+                }
+                let mut combined = TrieCounter::new();
+                for _ in 1..self.uni.world().size() {
+                    let (v, _) = self.uni.world().any_process().receive_vec();
+                    combined.add_from_vec(&v);
+                }
+                p = combined.to_frequent_new(self.sup);
+                println!("{i} {:?}", prev_time.elapsed());
+                if p.is_empty() {
+                    break;
+                }
+                p.for_each(|v| {
+                    self.writer.write_set(v);
+                });
             }
-            let mut combined = TrieCounter::new();
-            for _ in 1..self.uni.world().size() {
-                let (v, _) = self.uni.world().any_process().receive_vec();
-                combined.add_from_vec(&v);
-            }
-            p = combined.to_frequent_new(self.sup);
-            if p.is_empty() {
-                break;
-            }
-            p.for_each(|v| {
-                self.writer.write_set(v);
-            });
         }
         for i in 1..self.uni.world().size() {
             self.uni.world().process_at_rank(i).send(&[u64::MAX]);
         }
     }
-    fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
+    pub fn preprocess(&mut self, data: &TransactionSet) -> TrieSet {
         AprioriPass1And2::new(self.sup, data).run(self.writer)
     }
 }
