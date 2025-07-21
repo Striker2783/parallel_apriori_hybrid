@@ -1,10 +1,10 @@
 use std::time::Instant;
 
 use apriori::{
-    apriori::apriori_pass_one,
+    apriori::apriori_pass_two_counter,
     array2d::AprioriP2Counter2,
     start::Write,
-    storage::{AprioriCounter, AprioriCounting, AprioriFrequent},
+    storage::{AprioriCounting, AprioriFrequent},
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
@@ -13,6 +13,8 @@ use mpi::{
     traits::{Communicator, Destination, Source},
 };
 use parallel::traits::{Convertable, ParallelRun};
+
+use crate::main_thread::{MainRunner, ParallelCounting};
 
 pub struct CountDistribution<'a, T: Write> {
     data: &'a TransactionSet,
@@ -35,7 +37,12 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
         }
         let rank = universe.world().rank();
         if rank == 0 {
-            let mut a = MainRunner::new(self.sup, self.writer, universe);
+            let mut a = MainRunner::new(
+                self.sup,
+                self.writer,
+                &universe,
+                MainHelper::new(self.data, &universe),
+            );
             let temp = Instant::now();
             let b = a.preprocess(self.data);
             println!("Preprocess {:?}", temp.elapsed());
@@ -47,16 +54,14 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
     }
 }
 
-struct HelperRunner {
+struct MainHelper {
     data: TransactionSet,
-    uni: Universe,
 }
-
-impl HelperRunner {
-    pub fn new(data: &TransactionSet, uni: Universe) -> Self {
+impl MainHelper {
+    pub fn new(data: &TransactionSet, uni: &Universe) -> Self {
         let world = uni.world();
-        let count = data.len() / (world.size() - 1) as usize;
-        let thread = world.rank() as usize - 1;
+        let count = data.len() / world.size() as usize;
+        let thread = world.rank() as usize;
         let slice = if world.rank() == world.size() - 1 {
             &data.transactions[(count * thread)..data.len()]
         } else {
@@ -64,7 +69,34 @@ impl HelperRunner {
         };
         let data = TransactionSet::new(slice.to_vec(), data.num_items);
 
-        Self { data, uni }
+        Self { data }
+    }
+}
+impl ParallelCounting for MainHelper {
+    fn count(&mut self, set: &TrieSet, n: usize) -> Vec<u64> {
+        let mut counter: TrieCounter = set.join_new();
+        for d in self.data.iter() {
+            counter.count(d, n);
+        }
+        counter.to_vec()
+    }
+
+    fn count_2(&mut self, prev: &[usize]) -> Vec<u64> {
+        let mut p2 = AprioriP2Counter2::new(prev);
+        apriori_pass_two_counter(&self.data, &mut p2);
+        p2.to_vec()
+    }
+}
+
+struct HelperRunner {
+    counter: MainHelper,
+    uni: Universe,
+}
+
+impl HelperRunner {
+    pub fn new(data: &TransactionSet, uni: Universe) -> Self {
+        let counter = MainHelper::new(data, &uni);
+        Self { counter, uni }
     }
     fn run(&mut self) {
         for n in 2.. {
@@ -75,92 +107,14 @@ impl HelperRunner {
             }
             if n == 2 {
                 let a: Vec<_> = a.0.into_iter().map(|n| n as usize).collect();
-                let mut counter = AprioriP2Counter2::new(&a);
-                for d in self.data.iter() {
-                    for (i, a) in d.iter().cloned().enumerate() {
-                        for b in d.iter().cloned().skip(i + 1) {
-                            counter.increment(&[a, b]);
-                        }
-                    }
-                }
-                let v = counter.to_vec();
+                let v = self.counter.count_2(&a);
                 self.uni.world().process_at_rank(0).send(&v);
             } else {
                 let mut trie = TrieSet::new();
                 trie.add_from_vec(&a.0);
-                let mut counter: TrieCounter = trie.join_new();
-                for d in self.data.iter() {
-                    counter.count(d, n);
-                }
-                let v = counter.to_vec();
+                let v = self.counter.count(&trie, n);
                 self.uni.world().process_at_rank(0).send(&v);
             }
         }
-    }
-}
-
-pub(crate) struct MainRunner<'a, T: Write> {
-    sup: u64,
-    writer: &'a mut T,
-    uni: Universe,
-}
-
-impl<'a, T: Write> MainRunner<'a, T> {
-    pub fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
-        Self { sup, writer, uni }
-    }
-    fn end(&mut self) {
-        for i in 1..self.uni.world().size() {
-            self.uni.world().process_at_rank(i).send(&[u64::MAX]);
-        }
-    }
-    fn pass_two(&mut self, p1: &[usize]) -> TrieSet {
-        let p1set: Vec<u64> = p1.iter().map(|&n| n as u64).collect();
-        for i in 1..self.uni.world().size() {
-            self.uni.world().process_at_rank(i).send(&p1set);
-        }
-        let mut combined = AprioriP2Counter2::new(p1);
-        for _ in 1..self.uni.world().size() {
-            let (v, _) = self.uni.world().any_process().receive_vec();
-            combined.add_from_vec(&v);
-        }
-        combined.to_frequent_new(self.sup)
-    }
-    pub fn run(&mut self, p1: Vec<usize>) {
-        if p1.is_empty() {
-            self.end();
-            return;
-        }
-        let prev_time = Instant::now();
-        let mut p = self.pass_two(&p1);
-        println!("2 {:?}", prev_time.elapsed());
-        if p.is_empty() {
-            self.end();
-            return;
-        }
-        for i in 3.. {
-            let prev_time = Instant::now();
-            let converted = p.to_vec();
-            for i in 1..self.uni.world().size() {
-                self.uni.world().process_at_rank(i).send(&converted);
-            }
-            let mut combined = TrieCounter::new();
-            for _ in 1..self.uni.world().size() {
-                let (v, _) = self.uni.world().any_process().receive_vec();
-                combined.add_from_vec(&v);
-            }
-            p = combined.to_frequent_new(self.sup);
-            println!("{i} {:?}", prev_time.elapsed());
-            if p.is_empty() {
-                break;
-            }
-            p.for_each(|v| {
-                self.writer.write_set(v);
-            });
-        }
-        self.end();
-    }
-    pub fn preprocess(&mut self, data: &TransactionSet) -> Vec<usize> {
-        apriori_pass_one(data, self.sup)
     }
 }

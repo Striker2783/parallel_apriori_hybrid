@@ -1,5 +1,10 @@
 use apriori::{
-    array2d::AprioriP2Counter2, start::Write, storage::{AprioriCounter, AprioriFrequent}, transaction_set::TransactionSet, trie::{TrieCounter, TrieSet}
+    apriori::apriori_pass_two_counter,
+    array2d::AprioriP2Counter2,
+    start::Write,
+    storage::AprioriFrequent,
+    transaction_set::TransactionSet,
+    trie::{TrieCounter, TrieSet},
 };
 use apriori_tid::hybrid::AprioriHybridContainer;
 use mpi::{
@@ -8,7 +13,7 @@ use mpi::{
 };
 use parallel::traits::{Convertable, ParallelRun};
 
-use crate::runner::MainRunner;
+use crate::main_thread::{MainRunner, ParallelCounting};
 
 pub struct CountDistributionHybrid<'a, T: Write> {
     data: &'a TransactionSet,
@@ -31,7 +36,12 @@ impl<T: Write> ParallelRun for CountDistributionHybrid<'_, T> {
         }
         let rank = universe.world().rank();
         if rank == 0 {
-            let mut a = MainRunner::new(self.sup, self.writer, universe);
+            let mut a = MainRunner::new(
+                self.sup,
+                self.writer,
+                &universe,
+                MainHelper::new(self.data, &universe, self.sup),
+            );
             let b = a.preprocess(self.data);
             a.run(b);
         } else {
@@ -41,31 +51,60 @@ impl<T: Write> ParallelRun for CountDistributionHybrid<'_, T> {
     }
 }
 
-struct HelperRunner {
+struct MainHelper {
     data: TransactionSet,
-    sup: u64,
-    uni: Universe,
     container: AprioriHybridContainer,
+    sup: u64,
 }
-
-impl HelperRunner {
-    pub fn new(data: &TransactionSet, uni: Universe, sup: u64) -> Self {
+impl MainHelper {
+    pub fn new(data: &TransactionSet, uni: &Universe, sup: u64) -> Self {
         let world = uni.world();
-        let count = data.len() / (world.size() - 1) as usize;
-        let thread = world.rank() as usize - 1;
+        let count = data.len() / (world.size()) as usize;
+        let thread = world.rank() as usize;
         let slice = if world.rank() == world.size() - 1 {
             &data.transactions[(count * thread)..data.len()]
         } else {
             &data[(count * thread)..(count * (thread + 1))]
         };
         let data = TransactionSet::new(slice.to_vec(), data.num_items);
-        let container = AprioriHybridContainer::new(TrieCounter::new(), sup);
+
         Self {
             data,
-            uni,
+            container: AprioriHybridContainer::new(TrieCounter::new(), 0),
             sup,
-            container,
         }
+    }
+}
+impl ParallelCounting for MainHelper {
+    fn count(&mut self, set: &TrieSet, n: usize) -> Vec<u64> {
+        if n == 3 {
+            let mut counter = TrieCounter::new();
+            set.for_each(|v| {
+                counter.add(v, self.sup);
+            });
+            self.container = AprioriHybridContainer::new(counter, self.sup);
+        } else {
+            self.container.set(set);
+        }
+        self.container.run(&mut self.data, n);
+        self.container.to_vec()
+    }
+    fn count_2(&mut self, prev: &[usize]) -> Vec<u64> {
+        let mut p2 = AprioriP2Counter2::new(prev);
+        apriori_pass_two_counter(&self.data, &mut p2);
+        p2.to_vec()
+    }
+}
+
+struct HelperRunner {
+    uni: Universe,
+    counter: MainHelper,
+}
+
+impl HelperRunner {
+    pub fn new(data: &TransactionSet, uni: Universe, sup: u64) -> Self {
+        let counter = MainHelper::new(data, &uni, sup);
+        Self { counter, uni }
     }
     fn run(&mut self) {
         for n in 2.. {
@@ -76,30 +115,12 @@ impl HelperRunner {
             }
             if n == 2 {
                 let a: Vec<_> = a.0.into_iter().map(|n| n as usize).collect();
-                let mut counter = AprioriP2Counter2::new(&a);
-                for d in self.data.iter() {
-                    for (i, a) in d.iter().cloned().enumerate() {
-                        for b in d.iter().cloned().skip(i + 1) {
-                            counter.increment(&[a, b]);
-                        }
-                    }
-                }
-                let v = counter.to_vec();
+                let v = self.counter.count_2(&a);
                 self.uni.world().process_at_rank(0).send(&v);
             } else {
                 let mut trie = TrieSet::new();
                 trie.add_from_vec(&a.0);
-                if n == 3 {
-                    let mut counter = TrieCounter::new();
-                    trie.for_each(|v| {
-                        counter.add(v, self.sup);
-                    });
-                    self.container = AprioriHybridContainer::new(counter, self.sup);
-                } else {
-                    self.container.set(&trie);
-                }
-                self.container.run(&mut self.data, n);
-                let v = self.container.to_vec();
+                let v = self.counter.count(&trie, n);
                 self.uni.world().process_at_rank(0).send(&v);
             }
         }
