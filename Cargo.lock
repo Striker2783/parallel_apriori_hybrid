@@ -80,6 +80,7 @@ version = "0.1.0"
 dependencies = [
  "ahash",
  "parallel",
+ "tester",
 ]
 
 [[package]]
@@ -549,6 +550,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-ident",
+]
+
+[[package]]
+name = "tester"
+version = "0.1.0"
+dependencies = [
+ "apriori",
 ]
 
 [[package]]

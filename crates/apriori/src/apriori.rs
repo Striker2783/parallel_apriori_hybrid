@@ -25,7 +25,7 @@ pub fn apriori_pass_one(data: &TransactionSet, sup: u64) -> Vec<usize> {
 }
 
 pub struct AprioriRunner<'a> {
-    data: &'a mut TransactionSet,
+    data: &'a TransactionSet,
     sup: u64,
 }
 
@@ -43,7 +43,6 @@ impl Apriori for AprioriRunner<'_> {
                 break;
             }
             prev.for_each(|v| {
-                println!("{v:?}");
                 out.write_set(v);
             });
         }
@@ -51,7 +50,7 @@ impl Apriori for AprioriRunner<'_> {
 }
 
 impl<'a> AprioriRunner<'a> {
-    pub fn new(data: &'a mut TransactionSet, sup: u64) -> Self {
+    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
         Self { data, sup }
     }
 }
