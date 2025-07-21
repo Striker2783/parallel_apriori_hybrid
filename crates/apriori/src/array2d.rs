@@ -24,6 +24,15 @@ impl<'a> AprioriP2Counter2<'a> {
         }
     }
 }
+impl Convertable for AprioriP2Counter2<'_> {
+    fn to_vec(&mut self) -> Vec<u64> {
+        self.arr.to_vec()
+    }
+
+    fn add_from_vec(&mut self, v: &[u64]) {
+        self.arr.add_from_vec(v);
+    }
+}
 impl AprioriCounter for AprioriP2Counter2<'_> {
     fn increment(&mut self, v: &[usize]) -> bool {
         if let (Some(a), Some(b)) = (
