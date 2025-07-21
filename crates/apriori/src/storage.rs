@@ -1,4 +1,4 @@
-use ahash::AHashMap;
+use ahash::{AHashMap, HashSet};
 
 pub trait AprioriCounter {
     fn increment(&mut self, v: &[usize]) -> bool;
@@ -117,6 +117,24 @@ pub trait AprioriFrequent {
             }
             counter.insert(v);
         });
+    }
+}
+
+impl AprioriFrequent for std::collections::HashSet<Vec<usize>> {
+    fn for_each(&self, mut f: impl FnMut(&[usize])) {
+        self.iter().for_each(|v| f(v.as_slice()));
+    }
+
+    fn contains(&self, v: &[usize]) -> bool {
+        self.contains(v)
+    }
+
+    fn insert(&mut self, v: &[usize]) {
+        self.insert(v.to_vec());
+    }
+
+    fn len(&self) -> usize {
+        self.len()
     }
 }
 

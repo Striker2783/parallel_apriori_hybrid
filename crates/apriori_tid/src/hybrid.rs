@@ -2,6 +2,7 @@ use std::time::Instant;
 
 use apriori::{
     apriori::{apriori_pass_one, apriori_pass_two_counter},
+    array2d::AprioriP2Counter2,
     start::Write,
     storage::{AprioriCounter, AprioriCounting, AprioriFrequent, Joinable},
     transaction_set::TransactionSet,
@@ -23,14 +24,16 @@ impl<'a> AprioriHybridRunner<'a> {
     pub fn run<T: Write>(self, writer: &mut T) {
         let p1 = apriori_pass_one(self.data, self.sup);
         p1.iter().for_each(|&n| writer.write_set(&[n]));
-        let mut counter = TrieCounter::new();
+        let mut counter = AprioriP2Counter2::new(&p1);
         apriori_pass_two_counter(self.data, &mut counter);
+        let mut trie = TrieCounter::new();
         counter.for_each(|v, n| {
             if n >= self.sup {
                 writer.write_set(v);
             }
+            trie.add(v, n);
         });
-        let mut prev = AprioriHybridContainer::new(counter, self.sup);
+        let mut prev = AprioriHybridContainer::new(trie, self.sup);
         for n in 3.. {
             let prev_time = Instant::now();
             prev.run(self.data, n);

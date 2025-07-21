@@ -20,4 +20,5 @@ members = [
     "crates/apriori_tid",
     "crates/count_distribution",
     "crates/parallel",
+    "crates/tester",
 ]
