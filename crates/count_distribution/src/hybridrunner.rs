@@ -97,30 +97,14 @@ impl ParallelCounting for MainHelper {
 }
 
 struct HelperRunner {
-    data: TransactionSet,
-    sup: u64,
     uni: Universe,
-    container: AprioriHybridContainer,
+    counter: MainHelper,
 }
 
 impl HelperRunner {
     pub fn new(data: &TransactionSet, uni: Universe, sup: u64) -> Self {
-        let world = uni.world();
-        let count = data.len() / (world.size()) as usize;
-        let thread = world.rank() as usize;
-        let slice = if world.rank() == world.size() - 1 {
-            &data.transactions[(count * thread)..data.len()]
-        } else {
-            &data[(count * thread)..(count * (thread + 1))]
-        };
-        let data = TransactionSet::new(slice.to_vec(), data.num_items);
-        let container = AprioriHybridContainer::new(TrieCounter::new(), sup);
-        Self {
-            data,
-            uni,
-            sup,
-            container,
-        }
+        let counter = MainHelper::new(data, &uni, sup);
+        Self { counter, uni }
     }
     fn run(&mut self) {
         for n in 2.. {
@@ -131,24 +115,12 @@ impl HelperRunner {
             }
             if n == 2 {
                 let a: Vec<_> = a.0.into_iter().map(|n| n as usize).collect();
-                let mut counter = AprioriP2Counter2::new(&a);
-                apriori_pass_two_counter(&self.data, &mut counter);
-                let v = counter.to_vec();
+                let v = self.counter.count_2(&a);
                 self.uni.world().process_at_rank(0).send(&v);
             } else {
                 let mut trie = TrieSet::new();
                 trie.add_from_vec(&a.0);
-                if n == 3 {
-                    let mut counter = TrieCounter::new();
-                    trie.for_each(|v| {
-                        counter.add(v, self.sup);
-                    });
-                    self.container = AprioriHybridContainer::new(counter, self.sup);
-                } else {
-                    self.container.set(&trie);
-                }
-                self.container.run(&mut self.data, n);
-                let v = self.container.to_vec();
+                let v = self.counter.count(&trie, n);
                 self.uni.world().process_at_rank(0).send(&v);
             }
         }
