@@ -14,15 +14,26 @@ use mpi::{
 };
 use parallel::traits::Convertable;
 
-pub(crate) struct MainRunner<'a, T: Write> {
-    sup: u64,
-    writer: &'a mut T,
-    uni: Universe,
+pub trait ParallelCounting {
+    fn count(&mut self, set: &TrieSet, n: usize) -> Vec<u64>;
+    fn count_2(&mut self, prev: &[usize]) -> Vec<u64>;
 }
 
-impl<'a, T: Write> MainRunner<'a, T> {
-    pub fn new(sup: u64, writer: &'a mut T, uni: Universe) -> Self {
-        Self { sup, writer, uni }
+pub(crate) struct MainRunner<'a, T: Write, U: ParallelCounting> {
+    sup: u64,
+    writer: &'a mut T,
+    uni: &'a Universe,
+    counter: U,
+}
+
+impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
+    pub fn new(sup: u64, writer: &'a mut T, uni: &'a Universe, counter: U) -> Self {
+        Self {
+            sup,
+            writer,
+            uni,
+            counter,
+        }
     }
     fn end(&mut self) {
         for i in 1..self.uni.world().size() {
@@ -35,6 +46,7 @@ impl<'a, T: Write> MainRunner<'a, T> {
             self.uni.world().process_at_rank(i).send(&p1set);
         }
         let mut combined = AprioriP2Counter2::new(p1);
+        combined.add_from_vec(&self.counter.count_2(p1));
         for _ in 1..self.uni.world().size() {
             let (v, _) = self.uni.world().any_process().receive_vec();
             combined.add_from_vec(&v);
@@ -48,6 +60,7 @@ impl<'a, T: Write> MainRunner<'a, T> {
         }
         let prev_time = Instant::now();
         let mut p = self.pass_two(&p1);
+        p.for_each(|v| self.writer.write_set(v));
         println!("2 {:?}", prev_time.elapsed());
         if p.is_empty() {
             self.end();
@@ -60,6 +73,7 @@ impl<'a, T: Write> MainRunner<'a, T> {
                 self.uni.world().process_at_rank(i).send(&converted);
             }
             let mut combined = TrieCounter::new();
+            combined.add_from_vec(&self.counter.count(&p, i));
             for _ in 1..self.uni.world().size() {
                 let (v, _) = self.uni.world().any_process().receive_vec();
                 combined.add_from_vec(&v);
@@ -76,6 +90,8 @@ impl<'a, T: Write> MainRunner<'a, T> {
         self.end();
     }
     pub fn preprocess(&mut self, data: &TransactionSet) -> Vec<usize> {
-        apriori_pass_one(data, self.sup)
+        let p = apriori_pass_one(data, self.sup);
+        p.iter().for_each(|&n| self.writer.write_set(&[n]));
+        p
     }
 }
