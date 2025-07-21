@@ -1,8 +1,5 @@
 use apriori::{
-    start::Write,
-    storage::AprioriFrequent,
-    transaction_set::TransactionSet,
-    trie::{TrieCounter, TrieSet},
+    array2d::AprioriP2Counter2, start::Write, storage::{AprioriCounter, AprioriFrequent}, transaction_set::TransactionSet, trie::{TrieCounter, TrieSet}
 };
 use apriori_tid::hybrid::AprioriHybridContainer;
 use mpi::{
@@ -71,26 +68,40 @@ impl HelperRunner {
         }
     }
     fn run(&mut self) {
-        for n in 3.. {
+        for n in 2.. {
             let a: (Vec<u64>, mpi::point_to_point::Status) =
                 self.uni.world().process_at_rank(0).receive_vec();
             if a.0[0] == u64::MAX {
                 break;
             }
-            let mut trie = TrieSet::new();
-            trie.add_from_vec(&a.0);
-            if n == 3 {
-                let mut counter = TrieCounter::new();
-                trie.for_each(|v| {
-                    counter.add(v, self.sup);
-                });
-                self.container = AprioriHybridContainer::new(counter, self.sup);
+            if n == 2 {
+                let a: Vec<_> = a.0.into_iter().map(|n| n as usize).collect();
+                let mut counter = AprioriP2Counter2::new(&a);
+                for d in self.data.iter() {
+                    for (i, a) in d.iter().cloned().enumerate() {
+                        for b in d.iter().cloned().skip(i + 1) {
+                            counter.increment(&[a, b]);
+                        }
+                    }
+                }
+                let v = counter.to_vec();
+                self.uni.world().process_at_rank(0).send(&v);
             } else {
-                self.container.set(&trie);
+                let mut trie = TrieSet::new();
+                trie.add_from_vec(&a.0);
+                if n == 3 {
+                    let mut counter = TrieCounter::new();
+                    trie.for_each(|v| {
+                        counter.add(v, self.sup);
+                    });
+                    self.container = AprioriHybridContainer::new(counter, self.sup);
+                } else {
+                    self.container.set(&trie);
+                }
+                self.container.run(&mut self.data, n);
+                let v = self.container.to_vec();
+                self.uni.world().process_at_rank(0).send(&v);
             }
-            self.container.run(&mut self.data, n);
-            let v = self.container.to_vec();
-            self.uni.world().process_at_rank(0).send(&v);
         }
     }
 }

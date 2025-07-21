@@ -9,6 +9,15 @@ use crate::{
     transaction_set::TransactionSet,
 };
 
+pub fn apriori_pass_one(data: &TransactionSet, sup: u64) -> Vec<usize> {
+    let p1: Vec<_> = AprioriP1::new(data, sup).run_one();
+    p1.iter()
+        .enumerate()
+        .filter(|(_, count)| **count)
+        .map(|(i, _)| i)
+        .collect()
+}
+
 pub struct AprioriPass1And2<'a> {
     sup: u64,
     data: &'a TransactionSet,

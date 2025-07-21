@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use parallel::traits::Convertable;
+
 use crate::storage::AprioriCounter;
 
 pub struct AprioriP2Counter2<'a> {
@@ -20,6 +22,15 @@ impl<'a> AprioriP2Counter2<'a> {
             reverse_map,
             map,
         }
+    }
+}
+impl Convertable for AprioriP2Counter2<'_> {
+    fn to_vec(&mut self) -> Vec<u64> {
+        self.arr.to_vec()
+    }
+
+    fn add_from_vec(&mut self, v: &[u64]) {
+        self.arr.add_from_vec(v);
     }
 }
 impl AprioriCounter for AprioriP2Counter2<'_> {
@@ -137,6 +148,18 @@ impl Array2D<u64> {
         for i in 0..self.0.len() {
             self.0[i] += rhs.0[i];
         }
+    }
+}
+impl Convertable for Array2D<u64> {
+    fn to_vec(&mut self) -> Vec<u64> {
+        self.0.clone()
+    }
+
+    fn add_from_vec(&mut self, v: &[u64]) {
+        assert_eq!(self.0.len(), v.len());
+        (0..v.len()).for_each(|i| {
+            self.0[i] += v[i];
+        });
     }
 }
 /// The Iterator for the 2D Array
