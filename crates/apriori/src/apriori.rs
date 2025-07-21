@@ -4,20 +4,25 @@ use crate::array2d::{AprioriP2Counter, AprioriP2Counter2};
 use crate::start::{Apriori, AprioriGeneral, AprioriTwo};
 use crate::storage::{AprioriCounter, AprioriCounting, AprioriFrequent};
 use crate::trie::{TrieCounter, TrieSet};
-use crate::{
-    start::{AprioriOne, Write},
-    transaction_set::TransactionSet,
-};
+use crate::{start::Write, transaction_set::TransactionSet};
 
+pub fn apriori_pass_one_counter(data: &TransactionSet, counter: &mut impl AprioriCounter) {
+    for d in data.iter() {
+        for &n in d.iter() {
+            counter.increment(&[n]);
+        }
+    }
+}
 pub fn apriori_pass_one(data: &TransactionSet, sup: u64) -> Vec<usize> {
-    let p1: Vec<_> = AprioriP1::new(data, sup).run_one();
-    p1.iter()
+    let mut counter = vec![0; data.num_items];
+    apriori_pass_one_counter(data, &mut counter);
+    counter
+        .iter()
         .enumerate()
-        .filter(|(_, count)| **count)
+        .filter(|(_, count)| **count >= sup)
         .map(|(i, _)| i)
         .collect()
 }
-
 pub struct AprioriPass1And2<'a> {
     sup: u64,
     data: &'a TransactionSet,
@@ -27,18 +32,11 @@ impl<'a> AprioriPass1And2<'a> {
         Self { sup, data }
     }
     fn pass_1(&self, out: &mut impl Write) -> Vec<usize> {
-        let p1: Vec<_> = AprioriP1::new(self.data, self.sup).run_one();
-        (0..p1.len()).for_each(|i| {
-            if !p1[i] {
-                return;
-            }
-            out.write_set(&[i]);
+        let p1: Vec<_> = apriori_pass_one(self.data, self.sup);
+        p1.iter().for_each(|&n| {
+            out.write_set(&[n]);
         });
-        p1.iter()
-            .enumerate()
-            .filter(|(_, count)| **count)
-            .map(|(i, _)| i)
-            .collect()
+        p1
     }
     pub fn count(self, out: &mut impl Write) -> TrieCounter {
         let p1 = self.pass_1(out);
@@ -89,42 +87,6 @@ impl<'a> AprioriRunner<'a> {
     }
 }
 
-pub struct AprioriP1<'a> {
-    data: &'a TransactionSet,
-    sup: u64,
-}
-
-impl<'a> AprioriP1<'a> {
-    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
-        Self { data, sup }
-    }
-}
-impl AprioriOne<Vec<bool>> for AprioriP1<'_> {
-    fn run_one(self) -> Vec<bool> {
-        let mut counter = vec![0u64; self.data.num_items];
-        for data in self.data.iter() {
-            for &i in data {
-                counter.increment(&[i]);
-            }
-        }
-        let mut frequent = vec![false; self.data.num_items];
-        counter.to_frequent(&mut frequent, self.sup);
-        frequent
-    }
-}
-impl AprioriOne<TrieSet> for AprioriP1<'_> {
-    fn run_one(self) -> TrieSet {
-        let mut counter = vec![0u64; self.data.num_items];
-        for data in self.data.iter() {
-            for &i in data {
-                counter.increment(&[i]);
-            }
-        }
-        let mut frequent = TrieSet::new();
-        counter.to_frequent(&mut frequent, self.sup);
-        frequent
-    }
-}
 pub struct AprioriP2New<'a> {
     data: &'a TransactionSet,
     frequent: &'a [usize],
@@ -218,24 +180,23 @@ impl AprioriGeneral<TrieSet> for AprioriP3<'_> {
 mod tests {
 
     use crate::{
-        apriori::AprioriP2New,
-        start::{Apriori, AprioriGeneral, AprioriOne, AprioriTwo, FrequentWriter},
+        apriori::{AprioriP2New, apriori_pass_one},
+        start::{Apriori, AprioriGeneral, AprioriTwo, FrequentWriter},
         storage::AprioriFrequent,
         transaction_set::TransactionSet,
         trie::TrieSet,
     };
 
-    use super::{AprioriP1, AprioriP2, AprioriP3, AprioriRunner};
+    use super::{AprioriP2, AprioriP3, AprioriRunner};
 
     #[test]
     fn test_run_one() {
         let set = TransactionSet::new(vec![vec![1, 2, 3], vec![2, 3]], 4);
-        let a: Vec<_> = AprioriP1::new(&set, 2).run_one();
-        assert_eq!(a.iter().filter(|&&b| b).count(), 2);
-        assert!(!a.contains(&[0]));
-        assert!(!a.contains(&[1]));
-        assert!(a.contains(&[2]));
-        assert!(a.contains(&[3]));
+        let a: Vec<_> = apriori_pass_one(&set, 2);
+        assert!(!a.contains(&0));
+        assert!(!a.contains(&1));
+        assert!(a.contains(&2));
+        assert!(a.contains(&3));
     }
     #[test]
     fn test_run_two() {
