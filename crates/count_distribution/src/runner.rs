@@ -1,8 +1,8 @@
 use std::time::Instant;
 
 use apriori::{
-    apriori::{AprioriPass1And2, apriori_pass_one},
-    array2d::{AprioriP2Counter2, Array2D},
+    apriori::apriori_pass_one,
+    array2d::AprioriP2Counter2,
     start::Write,
     storage::{AprioriCounter, AprioriCounting, AprioriFrequent},
     transaction_set::TransactionSet,
