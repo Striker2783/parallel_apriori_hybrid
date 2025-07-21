@@ -39,8 +39,8 @@ impl<'a> AprioriPass1And2<'a> {
         p1
     }
     pub fn count(self, out: &mut impl Write) -> TrieCounter {
-        let p1 = self.pass_1(out);
-        let p2 = AprioriP2New::new(self.data, &p1, self.sup).count();
+        let mut p2 = TrieCounter::new();
+        apriori_pass_two_counter(self.data, &mut p2);
         p2.for_each(|v, c| {
             if c < self.sup {
                 return;
@@ -51,7 +51,7 @@ impl<'a> AprioriPass1And2<'a> {
     }
     pub fn run(self, out: &mut impl Write) -> TrieSet {
         let p1 = self.pass_1(out);
-        let p2 = AprioriP2New::new(self.data, &p1, self.sup).run();
+        let p2: TrieSet = apriori_pass_two(self.data, self.sup, &p1);
         p2.for_each(|v| {
             out.write_set(v);
         });
@@ -87,50 +87,25 @@ impl<'a> AprioriRunner<'a> {
     }
 }
 
-pub struct AprioriP2New<'a> {
-    data: &'a TransactionSet,
-    frequent: &'a [usize],
+pub fn apriori_pass_two_counter(data: &TransactionSet, counter: &mut impl AprioriCounter) {
+    for d in data.iter() {
+        for (i, a) in d.iter().cloned().enumerate() {
+            for b in d.iter().cloned().skip(i + 1) {
+                counter.increment(&[a, b]);
+            }
+        }
+    }
+}
+pub fn apriori_pass_two<T: AprioriFrequent + Default>(
+    data: &TransactionSet,
     sup: u64,
+    freq: &[usize],
+) -> T {
+    let mut counter = AprioriP2Counter2::new(freq);
+    apriori_pass_two_counter(data, &mut counter);
+    counter.to_frequent_new::<T>(sup)
 }
 
-impl<'a> AprioriP2New<'a> {
-    pub fn new(data: &'a TransactionSet, frequent: &'a [usize], sup: u64) -> Self {
-        Self {
-            data,
-            frequent,
-            sup,
-        }
-    }
-    pub fn run(self) -> TrieSet {
-        let mut counter = AprioriP2Counter2::new(self.frequent);
-        for data in self.data.iter() {
-            for (i, a) in data.iter().cloned().enumerate() {
-                for b in data.iter().cloned().skip(i + 1) {
-                    counter.increment(&[a, b]);
-                }
-            }
-        }
-        counter.to_frequent_new(self.sup)
-    }
-    pub fn count(self) -> TrieCounter {
-        let mut counter = AprioriP2Counter2::new(self.frequent);
-        for data in self.data.iter() {
-            for (i, a) in data.iter().cloned().enumerate() {
-                for b in data.iter().cloned().skip(i + 1) {
-                    counter.increment(&[a, b]);
-                }
-            }
-        }
-        let mut new_counter = TrieCounter::new();
-        counter.for_each(|v, c| {
-            if c < self.sup {
-                return;
-            }
-            new_counter.add(v, c);
-        });
-        new_counter
-    }
-}
 pub struct AprioriP2<'a> {
     data: &'a TransactionSet,
     sup: u64,
@@ -180,7 +155,7 @@ impl AprioriGeneral<TrieSet> for AprioriP3<'_> {
 mod tests {
 
     use crate::{
-        apriori::{AprioriP2New, apriori_pass_one},
+        apriori::{apriori_pass_one, apriori_pass_two},
         start::{Apriori, AprioriGeneral, AprioriTwo, FrequentWriter},
         storage::AprioriFrequent,
         transaction_set::TransactionSet,
@@ -204,7 +179,7 @@ mod tests {
         let a = AprioriP2::new(&set, 2).run_two();
         assert_eq!(a.len(), 1);
         assert!(a.contains(&[2, 3]));
-        let a = AprioriP2New::new(&set, &[1, 2, 3], 2).run();
+        let a: TrieSet = apriori_pass_two(&set, 2, &[1, 2, 3]);
         assert_eq!(a.len(), 1);
         assert!(a.contains(&[2, 3]));
     }
