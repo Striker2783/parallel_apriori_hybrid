@@ -29,8 +29,7 @@ impl<'a, T: Write> CountDistribution<'a, T> {
 }
 
 impl<T: Write> ParallelRun for CountDistribution<'_, T> {
-    fn run(self) {
-        let universe = mpi::initialize().unwrap();
+    fn run(self, universe: &Universe) {
         let size = universe.world().size();
         if size < 2 {
             panic!("Rank must be at least 2")
@@ -40,8 +39,8 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
             let mut a = MainRunner::new(
                 self.sup,
                 self.writer,
-                &universe,
-                MainHelper::new(self.data, &universe),
+                universe,
+                MainHelper::new(self.data, universe),
             );
             let temp = Instant::now();
             let b = a.preprocess(self.data);
@@ -88,14 +87,14 @@ impl ParallelCounting for MainHelper {
     }
 }
 
-struct HelperRunner {
+struct HelperRunner<'a> {
     counter: MainHelper,
-    uni: Universe,
+    uni: &'a Universe,
 }
 
-impl HelperRunner {
-    pub fn new(data: &TransactionSet, uni: Universe) -> Self {
-        let counter = MainHelper::new(data, &uni);
+impl<'a> HelperRunner<'a> {
+    pub fn new(data: &TransactionSet, uni: &'a Universe) -> Self {
+        let counter = MainHelper::new(data, uni);
         Self { counter, uni }
     }
     fn run(&mut self) {

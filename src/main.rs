@@ -68,12 +68,13 @@ pub enum MainError {
 fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
     match v.algorithm {
         Algorithms::Apriori => {
-            let runner = AprioriRunner::new(&mut input.data, input.support_count);
+            let runner = AprioriRunner::new(&input.data, input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::CountDistribution => {
+            let universe = mpi::initialize().unwrap();
             let runner = CountDistribution::new(&input.data, input.support_count, &mut input.out);
-            runner.run();
+            runner.run(&universe);
         }
         Algorithms::AprioriTID => {
             let runner = AprioriTIDRunner2::new(&input.data, input.support_count);
@@ -84,9 +85,10 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             runner.run(&mut input.out);
         }
         Algorithms::CountDistributionHybrid => {
+            let universe = mpi::initialize().unwrap();
             let runner =
                 CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
-            runner.run();
+            runner.run(&universe);
         }
         Algorithms::AprioriTrie => {
             let runner = AprioriTrie::new(input.data, input.support_count);
