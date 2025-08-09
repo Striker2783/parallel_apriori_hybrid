@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use std::{cell::RefCell, ops::{AddAssign, Deref, DerefMut}, sync::{LazyLock, Mutex}};
 
 use ahash::AHashMap;
 use parallel::traits::Convertable;
@@ -367,6 +367,9 @@ impl<T> TrieNode<T> {
     ) {
         if ind == 0 {
             f(curr, &mut self.value);
+            return;
+        }
+        if v.len() < ind {
             return;
         }
         for (i, &n) in v.iter().enumerate() {
