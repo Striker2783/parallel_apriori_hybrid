@@ -1,22 +1,20 @@
-use std::collections::HashMap;
-
 use parallel::traits::Convertable;
 
 use crate::storage::AprioriCounter;
 
 pub struct AprioriP2Counter<'a> {
     arr: Array2D<u64>,
-    reverse_map: HashMap<usize, usize>,
+    reverse_map: Vec<Option<usize>>,
     map: &'a [usize],
 }
 impl<'a> AprioriP2Counter<'a> {
     pub fn new(map: &'a [usize]) -> Self {
-        let reverse_map = map
-            .iter()
-            .cloned()
-            .enumerate()
-            .map(|(i, c)| (c, i))
-            .collect();
+        assert!(!map.is_empty());
+        let &max = map.iter().max().unwrap();
+        let mut reverse_map = vec![None; max + 1];
+        for (i, &c) in map.iter().enumerate() {
+            reverse_map[c] = Some(i);
+        }
         Self {
             arr: Array2D::new(map.len()),
             reverse_map,
@@ -36,11 +34,13 @@ impl Convertable for AprioriP2Counter<'_> {
 impl AprioriCounter for AprioriP2Counter<'_> {
     fn increment(&mut self, v: &[usize]) -> bool {
         if let (Some(a), Some(b)) = (
-            self.reverse_map.get(&v[0]).cloned(),
-            self.reverse_map.get(&v[1]).cloned(),
+            self.reverse_map.get(v[0]).cloned(),
+            self.reverse_map.get(v[1]).cloned(),
         ) {
-            self.arr.increment(a, b);
-            return true;
+            if let (Some(a), Some(b)) = (a, b) {
+                self.arr.increment(a, b);
+                return true;
+            }
         }
         false
     }
@@ -51,13 +51,14 @@ impl AprioriCounter for AprioriP2Counter<'_> {
 
     fn get_count(&self, v: &[usize]) -> Option<u64> {
         if let (Some(a), Some(b)) = (
-            self.reverse_map.get(&v[0]).cloned(),
-            self.reverse_map.get(&v[1]).cloned(),
+            self.reverse_map.get(v[0]).cloned(),
+            self.reverse_map.get(v[1]).cloned(),
         ) {
-            Some(self.arr.get(a, b))
-        } else {
-            None
+            if let (Some(a), Some(b)) = (a, b) {
+                return Some(self.arr.get(a, b));
+            }
         }
+        None
     }
 
     fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
