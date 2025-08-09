@@ -55,7 +55,7 @@ impl<'a> AprioriTIDRunner2<'a> {
 }
 #[derive(Debug)]
 pub struct TransformedDatabase {
-    v: Vec<Vec<usize>>,
+    v: Vec<HashSet<usize>>,
 }
 
 impl std::ops::DerefMut for TransformedDatabase {
@@ -65,7 +65,7 @@ impl std::ops::DerefMut for TransformedDatabase {
 }
 
 impl std::ops::Deref for TransformedDatabase {
-    type Target = Vec<Vec<usize>>;
+    type Target = Vec<HashSet<usize>>;
 
     fn deref(&self) -> &Self::Target {
         &self.v
@@ -75,60 +75,40 @@ impl TransformedDatabase {
     pub fn transition(data: &TransactionSet, transition: &mut AprioriTransition, n: usize) -> Self {
         let mut a = Self::new();
         for d in data.iter() {
-            let mut vec = Vec::new();
+            let mut set = HashSet::new();
             transition.count_fn(d, n, |i| {
-                vec.push(i);
+                set.insert(i);
             });
-            if vec.is_empty() {
+            if set.is_empty() {
                 continue;
             }
-            a.push(vec);
+            a.push(set);
         }
         a
     }
     pub fn count(&self, c: &mut Candidates) -> Self {
         let mut new = Self::new();
         for set in &self.v {
-            let mut vec = Vec::new();
-            // Should use HashSet
-            let set: HashSet<usize> = set.iter().cloned().collect();
-            if set.len() > 200 {
-                for &n in set.iter() {
-                    let data = &c.candidates[n];
-                    for &ext in &data.extensions {
-                        let extended = &c.candidates[ext];
-                        let other = if extended.generators.0 == n {
-                            extended.generators.1
-                        } else {
-                            extended.generators.0
-                        };
-                        if set.contains(&other) {
-                            vec.push(ext);
-                        }
-                    }
-                }
-            } else {
-                // Should use Vector
-                for &n in set.iter() {
-                    let data = &c.candidates[n];
-                    for &ext in &data.extensions {
-                        let extended = &c.candidates[ext];
-                        let other = if extended.generators.0 == n {
-                            extended.generators.1
-                        } else {
-                            extended.generators.0
-                        };
-                        if set.contains(&other) {
-                            vec.push(ext);
-                        }
+            let mut new_set = HashSet::new();
+            for &n in set.iter() {
+                let data = &c.candidates[n];
+                for &ext in &data.extensions {
+                    let extended = &c.candidates[ext];
+                    let other = if extended.generators.0 == n {
+                        extended.generators.1
+                    } else {
+                        extended.generators.0
+                    };
+                    if set.contains(&other) {
+                        new_set.insert(ext);
                     }
                 }
             }
-            if !vec.is_empty() {
-                for &i in vec.iter() {
+            if !new_set.is_empty() {
+                for &i in new_set.iter() {
                     c.candidates[i].count += 1;
                 }
-                new.push(vec);
+                new.push(new_set);
             }
         }
         new
@@ -138,7 +118,11 @@ impl TransformedDatabase {
 impl From<&TransactionSet> for TransformedDatabase {
     fn from(value: &TransactionSet) -> Self {
         Self {
-            v: value.transactions.to_vec(),
+            v: value
+                .transactions
+                .iter()
+                .map(|v| v.iter().copied().collect())
+                .collect(),
         }
     }
 }
