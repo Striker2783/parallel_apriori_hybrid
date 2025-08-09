@@ -1,6 +1,6 @@
 use apriori::{
     apriori::apriori_pass_two_counter,
-    array2d::AprioriP2Counter2,
+    array2d::AprioriP2Counter,
     start::Write,
     storage::AprioriFrequent,
     transaction_set::TransactionSet,
@@ -89,7 +89,7 @@ impl ParallelCounting for MainHelper {
         self.container.to_vec()
     }
     fn count_2(&mut self, prev: &[usize]) -> Vec<u64> {
-        let mut p2 = AprioriP2Counter2::new(prev);
+        let mut p2 = AprioriP2Counter::new(prev);
         apriori_pass_two_counter(&self.data, &mut p2);
         p2.to_vec()
     }

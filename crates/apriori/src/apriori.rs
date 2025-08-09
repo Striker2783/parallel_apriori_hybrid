@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::array2d::AprioriP2Counter2;
+use crate::array2d::AprioriP2Counter;
 use crate::start::Apriori;
 use crate::storage::{AprioriCounter, AprioriCounting, AprioriFrequent};
 use crate::trie::{TrieCounter, TrieSet};
@@ -69,7 +69,7 @@ pub fn apriori_pass_two<T: AprioriFrequent + Default>(
     sup: u64,
     freq: &[usize],
 ) -> T {
-    let mut counter = AprioriP2Counter2::new(freq);
+    let mut counter = AprioriP2Counter::new(freq);
     apriori_pass_two_counter(data, &mut counter);
     counter.to_frequent_new::<T>(sup)
 }

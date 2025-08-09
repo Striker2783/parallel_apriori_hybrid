@@ -4,12 +4,12 @@ use parallel::traits::Convertable;
 
 use crate::storage::AprioriCounter;
 
-pub struct AprioriP2Counter2<'a> {
+pub struct AprioriP2Counter<'a> {
     arr: Array2D<u64>,
     reverse_map: HashMap<usize, usize>,
     map: &'a [usize],
 }
-impl<'a> AprioriP2Counter2<'a> {
+impl<'a> AprioriP2Counter<'a> {
     pub fn new(map: &'a [usize]) -> Self {
         let reverse_map = map
             .iter()
@@ -24,7 +24,7 @@ impl<'a> AprioriP2Counter2<'a> {
         }
     }
 }
-impl Convertable for AprioriP2Counter2<'_> {
+impl Convertable for AprioriP2Counter<'_> {
     fn to_vec(&mut self) -> Vec<u64> {
         self.arr.to_vec()
     }
@@ -33,7 +33,7 @@ impl Convertable for AprioriP2Counter2<'_> {
         self.arr.add_from_vec(v);
     }
 }
-impl AprioriCounter for AprioriP2Counter2<'_> {
+impl AprioriCounter for AprioriP2Counter<'_> {
     fn increment(&mut self, v: &[usize]) -> bool {
         if let (Some(a), Some(b)) = (
             self.reverse_map.get(&v[0]).cloned(),
@@ -71,32 +71,6 @@ impl AprioriCounter for AprioriP2Counter2<'_> {
     }
 }
 
-pub struct AprioriP2Counter(Array2D<u64>);
-impl AprioriP2Counter {
-    pub fn new(size: usize) -> Self {
-        Self(Array2D::new(size))
-    }
-}
-impl AprioriCounter for AprioriP2Counter {
-    fn increment(&mut self, v: &[usize]) -> bool {
-        self.0.increment(v[0], v[1]);
-        true
-    }
-
-    fn insert(&mut self, _: &[usize]) {}
-
-    fn get_count(&self, v: &[usize]) -> Option<u64> {
-        Some(self.0.get(v[0], v[1]))
-    }
-
-    fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
-        self.0.iter().for_each(|(r, c, count)| f(&[c, r], count));
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-}
 /// A lower triangle 2D square matrix in the form of a 1D array.
 #[derive(Debug, Default)]
 pub struct Array2D<T>(Vec<T>);
@@ -207,7 +181,7 @@ impl<T: Copy> Iterator for Array2DIterator<'_, T> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        array2d::{AprioriP2Counter2, Array2D},
+        array2d::{AprioriP2Counter, Array2D},
         storage::AprioriCounter,
     };
 
@@ -240,7 +214,7 @@ mod tests {
     }
     #[test]
     fn test_apriori_pass2() {
-        let mut counter = AprioriP2Counter2::new(&[1, 3, 5]);
+        let mut counter = AprioriP2Counter::new(&[1, 3, 5]);
         assert!(counter.increment(&[1, 3]));
         assert!(counter.increment(&[3, 5]));
         assert_eq!(counter.get_count(&[1, 3]), Some(1));

@@ -2,7 +2,7 @@ use std::time::Instant;
 
 use apriori::{
     apriori::apriori_pass_one,
-    array2d::AprioriP2Counter2,
+    array2d::AprioriP2Counter,
     start::Write,
     storage::{AprioriCounter, AprioriFrequent},
     transaction_set::TransactionSet,
@@ -45,7 +45,7 @@ impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
         for i in 1..self.uni.world().size() {
             self.uni.world().process_at_rank(i).send(&p1set);
         }
-        let mut combined = AprioriP2Counter2::new(p1);
+        let mut combined = AprioriP2Counter::new(p1);
         combined.add_from_vec(&self.counter.count_2(p1));
         for _ in 1..self.uni.world().size() {
             let (v, _) = self.uni.world().any_process().receive_vec();
