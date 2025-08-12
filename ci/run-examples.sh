@@ -1,6 +1,6 @@
 #!/bin/sh
 
-examples=$(ls examples | sed "s/\\.rs\$//")
+examples=$(find examples -maxdepth 1 -type f -name '*.rs' -exec basename {} .rs \;)
 
 for example in $examples; do
     echo "Running example: $example"
