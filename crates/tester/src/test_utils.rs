@@ -53,16 +53,12 @@ pub fn test_generic_with_option<T: AsRef<Path>>(
 ) {
     let database = test_files.as_ref().join(DATABASE);
     let solved = test_files.as_ref().join(SOLVED);
-    if !database.exists() {
-        panic!("Database file does not exist");
-    }
+    assert!(database.exists(), "Database file does not exist");
     let data = File::open(database).unwrap();
     let t = TransactionSet::from_dat(data);
 
     let s = f(t, 10);
-    if !solved.exists() {
-        panic!("Solved file does not exist");
-    }
+    assert!(solved.exists(), "Solved file does not exist");
     if s.is_none() {
         return;
     }

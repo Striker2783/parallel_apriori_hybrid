@@ -31,9 +31,7 @@ impl<'a, T: Write> CountDistribution<'a, T> {
 impl<T: Write> ParallelRun for CountDistribution<'_, T> {
     fn run(self, universe: &Universe) {
         let size = universe.world().size();
-        if size < 2 {
-            panic!("Rank must be at least 2")
-        }
+        assert!(size > 1, "Rank must be at least 2");
         let rank = universe.world().rank();
         if rank == 0 {
             let mut a = MainRunner::new(
