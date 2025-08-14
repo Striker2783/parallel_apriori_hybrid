@@ -13,6 +13,7 @@ count_distribution = { path = "crates/count_distribution" }
 parallel = { path = "crates/parallel" }
 clap = { version = "4.5.38", features = ["derive"] }
 apriori_tid = { path = "crates/apriori_tid" }
+tester = { path = "crates/tester" }
 
 [workspace]
 members = [

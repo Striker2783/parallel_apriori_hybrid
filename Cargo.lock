@@ -432,6 +432,7 @@ dependencies = [
  "count_distribution",
  "mpi",
  "parallel",
+ "tester",
 ]
 
 [[package]]
