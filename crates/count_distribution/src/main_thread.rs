@@ -6,7 +6,7 @@ use apriori::{
     start::Write,
     storage::{AprioriCounter, AprioriFrequent},
     transaction_set::TransactionSet,
-    trie::{TrieCounter, TrieSet},
+    trie::TrieSet,
 };
 use mpi::{
     environment::Universe,
@@ -16,7 +16,9 @@ use parallel::traits::Convertable;
 
 pub trait ParallelCounting {
     fn count(&mut self, set: &TrieSet, n: usize) -> Vec<u64>;
+    fn add(&mut self, v: &[u64]);
     fn count_2(&mut self, prev: &[usize]) -> Vec<u64>;
+    fn frequent(&mut self, sup: u64) -> TrieSet;
 }
 
 pub(crate) struct MainRunner<'a, T: Write, U: ParallelCounting> {
@@ -74,13 +76,12 @@ impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
             }
             let mut main_p = TrieSet::new();
             main_p.add_from_vec(&converted);
-            let mut combined: TrieCounter = main_p.join_new();
-            combined.add_from_vec(&self.counter.count(&main_p, i));
+            self.counter.count(&main_p, i);
             for _ in 1..self.uni.world().size() {
                 let (v, _) = self.uni.world().any_process().receive_vec();
-                combined.add_from_vec(&v);
+                self.counter.add(&v);
             }
-            p = combined.to_frequent_new(self.sup);
+            p = self.counter.frequent(self.sup);
             println!("{i} {:?}", prev_time.elapsed());
             if p.is_empty() {
                 break;

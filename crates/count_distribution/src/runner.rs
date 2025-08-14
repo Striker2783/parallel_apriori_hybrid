@@ -4,7 +4,7 @@ use apriori::{
     apriori::apriori_pass_two_counter,
     array2d::AprioriP2Counter,
     start::Write,
-    storage::{AprioriCounting, AprioriFrequent},
+    storage::{AprioriCounting, AprioriCounter, AprioriFrequent},
     transaction_set::TransactionSet,
     trie::{TrieCounter, TrieSet},
 };
@@ -55,6 +55,7 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
 
 struct MainHelper {
     data: TransactionSet,
+    counter: TrieCounter,
 }
 impl MainHelper {
     pub fn new(data: &TransactionSet, uni: &Universe) -> Self {
@@ -68,7 +69,7 @@ impl MainHelper {
         };
         let data = TransactionSet::new(slice.to_vec(), data.num_items);
 
-        Self { data }
+        Self { data, counter: TrieCounter::new() }
     }
 }
 impl ParallelCounting for MainHelper {
@@ -77,13 +78,23 @@ impl ParallelCounting for MainHelper {
         for d in self.data.iter() {
             counter.count(d, n);
         }
-        counter.to_vec()
+        let v = counter.to_vec();
+        self.counter = counter;
+        v
     }
 
     fn count_2(&mut self, prev: &[usize]) -> Vec<u64> {
         let mut p2 = AprioriP2Counter::new(prev);
         apriori_pass_two_counter(&self.data, &mut p2);
         p2.to_vec()
+    }
+    
+    fn add(&mut self, v: &[u64]) {
+        self.counter.add_from_vec(v);
+    }
+    
+    fn frequent(&mut self, sup: u64) -> TrieSet {
+        self.counter.to_frequent_new(sup)
     }
 }
 

@@ -211,22 +211,18 @@ impl Candidates {
 }
 impl Convertable for Candidates {
     fn to_vec(&mut self) -> Vec<u64> {
-        let mut trie = TrieCounter::new();
+        let mut v = Vec::new();
         self.for_each_range(|candidate| {
-            if candidate.count() == 0 {
-                return;
-            }
-            trie.add(&candidate.items, candidate.count);
+            v.push(candidate.count());
         });
-        trie.to_vec()
+        v
     }
 
     fn add_from_vec(&mut self, v: &[u64]) {
-        let mut trie = TrieCounter::new();
-        trie.add_from_vec(v);
+        let mut iter = v.iter().copied();
         self.for_each_range_mut(|candidate| {
-            if let Some(count) = trie.get_count(&candidate.items) {
-                candidate.count = count
+            if let Some(count) = iter.next() {
+                candidate.count += count
             }
         });
     }
