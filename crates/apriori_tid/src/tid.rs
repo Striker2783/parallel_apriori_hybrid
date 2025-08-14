@@ -229,7 +229,7 @@ impl Convertable for Candidates {
         trie.add_from_vec(v);
         self.for_each_range_mut(|candidate| {
             if let Some(count) = trie.get_count(&candidate.items) {
-                candidate.count = count
+                candidate.count += count
             }
         });
     }

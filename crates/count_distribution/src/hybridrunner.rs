@@ -93,6 +93,20 @@ impl ParallelCounting for MainHelper {
         apriori_pass_two_counter(&self.data, &mut p2);
         p2.to_vec()
     }
+
+    fn add(&mut self, v: &[u64]) {
+        self.container.add_from_vec(v);
+    }
+
+    fn frequent(&mut self, sup: u64) -> TrieSet {
+        let mut set = TrieSet::new();
+        self.container.for_each(|v, c| {
+            if c >= sup {
+                set.insert(v);
+            }
+        });
+        set
+    }
 }
 
 struct HelperRunner<'a> {
