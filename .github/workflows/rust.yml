@@ -29,4 +29,4 @@ jobs:
     - name: Parallel Examples
       run: |
         cargo install --force cargo-mpirun
-        ci/run-examples.sh
+        bash ci/run-examples.sh
