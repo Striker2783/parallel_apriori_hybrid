@@ -1,4 +1,4 @@
-use ahash::AHashMap;
+use fnv::FnvHashMap;
 
 pub trait AprioriCounter {
     fn increment(&mut self, v: &[usize]) -> bool;
@@ -81,7 +81,7 @@ pub trait AprioriFrequent {
         f
     }
     fn join_fn<T: FnMut(&[usize])>(&self, mut f: T) {
-        let mut map: AHashMap<Vec<usize>, Vec<usize>> = AHashMap::new();
+        let mut map: FnvHashMap<Vec<usize>, Vec<usize>> = FnvHashMap::default();
         self.for_each(|v| {
             match map.get_mut(&v[..(v.len() - 1)]) {
                 Some(vec) => vec.push(*v.last().unwrap()),

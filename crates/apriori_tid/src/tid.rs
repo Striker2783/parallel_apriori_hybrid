@@ -1,12 +1,12 @@
-use std::{collections::HashSet, ops::Range};
+use std::ops::Range;
 
-use ahash::AHashMap;
 use apriori::{
     start::Write,
     storage::{AprioriCounter, AprioriFrequent, Joinable},
     transaction_set::TransactionSet,
     trie::{AprioriTransition, TrieCounter, TrieSet},
 };
+use fnv::FnvHashMap;
 use parallel::traits::Convertable;
 
 pub struct AprioriTIDRunner2<'a> {
@@ -233,7 +233,7 @@ impl Convertable for Candidates {
 }
 impl Joinable<CandidateID> for Candidates {
     fn join_fn<U: FnMut(CandidateID)>(&mut self, mut f: U) {
-        let mut map: AHashMap<Vec<usize>, Vec<(usize, usize)>> = AHashMap::new();
+        let mut map: FnvHashMap<Vec<usize>, Vec<(usize, usize)>> = FnvHashMap::default();
         for i in self.prev.clone() {
             if self.candidates[i].count < self.sup {
                 continue;
@@ -269,7 +269,7 @@ impl Joinable<CandidateID> for Candidates {
 #[derive(Debug, Clone)]
 pub struct CandidateID {
     generators: (usize, usize),
-    extensions: HashSet<usize>,
+    extensions: fnv::FnvHashSet<usize>,
     count: u64,
     items: Vec<usize>,
 }
@@ -279,7 +279,7 @@ impl CandidateID {
         Self {
             items,
             generators,
-            extensions: HashSet::new(),
+            extensions: fnv::FnvHashSet::default(),
             count: 0,
         }
     }
@@ -288,7 +288,7 @@ impl CandidateID {
         self.generators
     }
 
-    pub fn extensions(&self) -> &HashSet<usize> {
+    pub fn extensions(&self) -> &fnv::FnvHashSet<usize> {
         &self.extensions
     }
 

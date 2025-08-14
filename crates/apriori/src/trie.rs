@@ -64,7 +64,6 @@ impl TrieCounter {
 
 impl Convertable for TrieCounter {
     fn to_vec(&mut self) -> Vec<u64> {
-        self.0.cleanup(0);
         let mut v = Vec::new();
         self.0.to_vec(&mut v);
         v
@@ -319,36 +318,21 @@ impl TrieNode<u64> {
             );
             return;
         }
-        v.push(self.children.len() as u64);
-        for (&k, child) in self.children.iter() {
-            v.push(k as u64);
-            child.to_vec(v);
-        }
+        self.for_each(|_, c| {
+            v.push(c);
+        });
     }
     pub fn add_from_vec(&mut self, v: &[u64]) {
         self.add_from_vec_helper(&mut v.iter().cloned());
     }
     fn add_from_vec_helper(&mut self, v: &mut impl Iterator<Item = u64>) {
-        let size = v.next().unwrap();
-        if size == 0 {
-            return;
-        } else if size >= 1 << 63 {
-            self.value += size - (1 << 63);
-            return;
-        }
-        for _ in 0..size {
-            let next = v.next().unwrap();
-            match self.children.get_mut(&(next as usize)) {
-                Some(child) => {
-                    child.add_from_vec_helper(v);
-                }
-                None => {
-                    let mut child = TrieNode::new(0);
-                    child.add_from_vec_helper(v);
-                    self.children.insert(next as usize, Box::new(child));
-                }
-            };
-        }
+        self.for_each_mut(|_, c| {
+            *c += v.next().expect("Transfer failed due to tree being larger");
+        });
+        assert!(
+            v.next().is_none(),
+            "Transfer failed due to vector being larger"
+        )
     }
 }
 impl<T> TrieNode<T> {
@@ -453,6 +437,9 @@ mod tests {
         let mut v = Vec::new();
         trie.to_vec(&mut v);
         let mut trie = Trie::new(0u64);
+        trie.insert(&[1, 2, 3], 0);
+        trie.insert(&[1, 2, 4], 0);
+        trie.insert(&[1, 3, 4], 0);
         trie.add_from_vec(&v);
         assert_eq!(trie.get(&[1, 2, 3]), Some(2));
         assert_eq!(trie.get(&[1, 2, 4]), Some(5));
@@ -462,7 +449,9 @@ mod tests {
         trie2.insert(&[1, 2, 3], 2);
         trie2.insert(&[1, 2, 4], 5);
         trie2.insert(&[1, 3, 4], 6);
+
         trie2.insert(&[1, 3, 5], 8);
+        trie.insert(&[1, 3, 5], 0);
         let mut v = Vec::new();
         trie2.to_vec(&mut v);
         trie.add_from_vec(&v);

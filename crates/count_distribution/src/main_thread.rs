@@ -72,8 +72,10 @@ impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
             for i in 1..self.uni.world().size() {
                 self.uni.world().process_at_rank(i).send(&converted);
             }
-            let mut combined = TrieCounter::new();
-            combined.add_from_vec(&self.counter.count(&p, i));
+            let mut main_p = TrieSet::new();
+            main_p.add_from_vec(&converted);
+            let mut combined: TrieCounter = main_p.join_new();
+            combined.add_from_vec(&self.counter.count(&main_p, i));
             for _ in 1..self.uni.world().size() {
                 let (v, _) = self.uni.world().any_process().receive_vec();
                 combined.add_from_vec(&v);
