@@ -1,6 +1,6 @@
-use std::{cell::RefCell, ops::{AddAssign, Deref, DerefMut}, sync::{LazyLock, Mutex}};
+use std::ops::{Deref, DerefMut};
 
-use ahash::AHashMap;
+use fnv::FnvHashMap;
 use parallel::traits::Convertable;
 
 use crate::storage::{AprioriCounter, AprioriCounterMut, AprioriCounting, AprioriFrequent};
@@ -174,7 +174,7 @@ impl<T> Deref for Trie<T> {
     }
 }
 pub struct TrieNode<T> {
-    children: AHashMap<usize, Box<TrieNode<T>>>,
+    children: FnvHashMap<usize, Box<TrieNode<T>>>,
     value: T,
 }
 
@@ -354,7 +354,7 @@ impl TrieNode<u64> {
 impl<T> TrieNode<T> {
     fn new(value: T) -> Self {
         Self {
-            children: AHashMap::new(),
+            children: FnvHashMap::default(),
             value,
         }
     }
