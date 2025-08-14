@@ -7,5 +7,6 @@ edition = "2024"
 apriori = { path = "../apriori" }
 parallel = { path = "../parallel" }
 ahash = "0.8.12"
+fnv = "1.0.7"
 [dev-dependencies]
 tester = { path = "../tester" }

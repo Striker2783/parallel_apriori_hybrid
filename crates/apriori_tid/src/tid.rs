@@ -1,9 +1,6 @@
-use std::{
-    collections::{HashMap, HashSet},
-    ops::Range,
-};
+use std::{collections::HashSet, ops::Range};
 
-use ahash::AHashSet;
+use ahash::AHashMap;
 use apriori::{
     start::Write,
     storage::{AprioriCounter, AprioriFrequent, Joinable},
@@ -56,7 +53,7 @@ impl<'a> AprioriTIDRunner2<'a> {
 }
 #[derive(Debug)]
 pub struct TransformedDatabase {
-    v: Vec<AHashSet<usize>>,
+    v: Vec<fnv::FnvHashSet<usize>>,
 }
 
 impl std::ops::DerefMut for TransformedDatabase {
@@ -66,7 +63,7 @@ impl std::ops::DerefMut for TransformedDatabase {
 }
 
 impl std::ops::Deref for TransformedDatabase {
-    type Target = Vec<AHashSet<usize>>;
+    type Target = Vec<fnv::FnvHashSet<usize>>;
 
     fn deref(&self) -> &Self::Target {
         &self.v
@@ -76,7 +73,7 @@ impl TransformedDatabase {
     pub fn transition(data: &TransactionSet, transition: &mut AprioriTransition, n: usize) -> Self {
         let mut a = Self::new();
         for d in data.iter() {
-            let mut set = AHashSet::new();
+            let mut set = fnv::FnvHashSet::default();
             transition.count_fn(d, n, |i| {
                 set.insert(i);
             });
@@ -90,7 +87,7 @@ impl TransformedDatabase {
     pub fn count(&self, c: &mut Candidates) -> Self {
         let mut new = Self::new();
         for set in &self.v {
-            let mut new_set = AHashSet::new();
+            let mut new_set = fnv::FnvHashSet::default();
             for &n in set.iter() {
                 let data = &c.candidates[n];
                 for &ext in &data.extensions {
@@ -236,7 +233,7 @@ impl Convertable for Candidates {
 }
 impl Joinable<CandidateID> for Candidates {
     fn join_fn<U: FnMut(CandidateID)>(&mut self, mut f: U) {
-        let mut map: HashMap<Vec<usize>, Vec<(usize, usize)>> = HashMap::new();
+        let mut map: AHashMap<Vec<usize>, Vec<(usize, usize)>> = AHashMap::new();
         for i in self.prev.clone() {
             if self.candidates[i].count < self.sup {
                 continue;
