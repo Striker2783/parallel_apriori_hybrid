@@ -18,6 +18,11 @@ case "$1" in
     profile)
         cargo build --release
         shift
+        samply record ./target/release/parallel_apriori $@
+        ;;
+    profilep)
+        cargo build --release
+        shift
         samply record mpirun ./target/release/parallel_apriori $@
         ;;
     parallel)
