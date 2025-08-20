@@ -46,6 +46,7 @@ impl TransactionSet {
             let mut items: Vec<usize> = line.split_whitespace().map(|s| s.parse::<usize>().unwrap()).collect();
             // Sorts the items and sets the max
             items.sort();
+            items.dedup();
             max = (*items.iter().max().unwrap()).max(max);
             transactions.push(items);
         }
