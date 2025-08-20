@@ -30,8 +30,8 @@ impl<'a> AprioriHybridRunner<'a> {
         counter.for_each(|v, n| {
             if n >= self.sup {
                 writer.write_set(v);
+                trie.add(v, n);
             }
-            trie.add(v, n);
         });
         let mut prev = AprioriHybridContainer::new(trie, self.sup);
         for n in 3.. {
