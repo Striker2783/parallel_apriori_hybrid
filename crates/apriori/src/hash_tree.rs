@@ -3,7 +3,8 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::{apriori::AprioriCounting, transaction_id::TransactionIdCounts};
+use crate::storage::AprioriCounting;
+
 /// A Hash Tree for the Apriori Algorithm
 #[derive(Debug, Default)]
 pub struct AprioriHashTree(AprioriHashTreeGeneric<50>);
@@ -234,6 +235,32 @@ impl<const N: usize> HashTreeInternalNode<N> {
             }
         }
     }
+    fn count_fn_helper(
+        &mut self,
+        v: &[usize],
+        curr: &mut Vec<usize>,
+        f: &mut impl FnMut(&[usize]),
+    ) {
+        for (i, &n) in v.iter().enumerate() {
+            curr.push(n);
+            let mut hasher = DefaultHasher::new();
+            n.hash(&mut hasher);
+            let hash = hasher.finish() as usize;
+            if let Some(node) = &mut self.map[hash % N] {
+                match node.deref_mut() {
+                    Node::Internal(hash_tree_internal_node) => {
+                        hash_tree_internal_node.count_fn_helper(&v[(i + 1)..], curr, f)
+                    }
+                    Node::Leaf(hash_tree_leaf_node) => {
+                        if hash_tree_leaf_node.increment(curr) {
+                            f(curr)
+                        }
+                    }
+                }
+            }
+            curr.pop();
+        }
+    }
 }
 
 impl<const N: usize> Default for HashTreeInternalNode<N> {
@@ -373,31 +400,11 @@ impl<'a, const N: usize> HashTreeIterator<'a, N> {
         }
     }
 }
-impl<const N: usize> TransactionIdCounts for AprioriHashTreeGeneric<N> {
-    fn increment(&mut self, v: &[usize]) -> bool {
-        self.increment(v)
-    }
-
-    fn len(&self) -> usize {
-        self.len()
-    }
-
-    fn for_each(&self, mut f: impl FnMut(&[usize])) {
-        self.iter().for_each(|v| f(v.0));
-    }
-}
 
 impl<const N: usize> AprioriCounting for AprioriHashTreeGeneric<N> {
-    fn len(&self) -> usize {
-        self.len()
-    }
-
-    fn increment(&mut self, v: &[usize]) -> bool {
-        self.increment(v)
-    }
-
-    fn for_each_mut(&mut self, f: impl FnMut(&[usize], &mut u64)) {
-        self.for_each_mut(f);
+    fn count_fn(&mut self, v: &[usize], n: usize, mut f: impl FnMut(&[usize])) {
+        let mut vec = Vec::new();
+        self.root.count_fn_helper(v, &mut vec, &mut f);
     }
 }
 
