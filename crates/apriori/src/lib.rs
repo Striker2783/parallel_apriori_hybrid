@@ -6,3 +6,4 @@ pub mod start;
 pub mod storage;
 pub mod transaction_set;
 pub mod trie;
+pub mod hash_tree;
