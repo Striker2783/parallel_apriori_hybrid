@@ -73,7 +73,7 @@ pub fn apriori_pass_two<T: AprioriFrequent + Default>(
     apriori_pass_two_counter(data, &mut counter);
     counter.to_frequent_new::<T>(sup)
 }
-pub fn apriori_pass_three_counter(data: &TransactionSet, counter: &mut TrieCounter, n: usize) {
+pub fn apriori_pass_three_counter<T: AprioriCounting>(data: &TransactionSet, counter: &mut T, n: usize) {
     for d in data.iter() {
         counter.count(d, n);
     }
