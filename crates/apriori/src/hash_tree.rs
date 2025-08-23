@@ -3,7 +3,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
-use crate::storage::AprioriCounting;
+use crate::storage::{AprioriCounter, AprioriCounting};
 
 /// A Hash Tree for the Apriori Algorithm
 #[derive(Debug, Default)]
@@ -24,6 +24,32 @@ impl Deref for AprioriHashTree {
 impl DerefMut for AprioriHashTree {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
+    }
+}
+impl AprioriCounting for AprioriHashTree {
+    fn count_fn(&mut self, v: &[usize], n: usize, f: impl FnMut(&[usize])) {
+        self.0.count_fn(v, n, f);
+    }
+}
+impl AprioriCounter for AprioriHashTree {
+    fn increment(&mut self, v: &[usize]) -> bool {
+        self.0.increment(v)
+    }
+
+    fn insert(&mut self, v: &[usize]) {
+        self.0.add(v);
+    }
+
+    fn get_count(&self, v: &[usize]) -> Option<u64> {
+        self.0.get_count(v)
+    }
+
+    fn for_each(&self, f: impl FnMut(&[usize], u64)) {
+        self.0.for_each(f);
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
     }
 }
 /// A Hash Tree for the Apriori Algorithm
@@ -196,6 +222,9 @@ impl<const N: usize> AprioriHashTreeGeneric<N> {
     pub fn for_each_mut(&mut self, mut f: impl FnMut(&[usize], &mut u64)) {
         self.root.for_each_mut(&mut f);
     }
+    pub fn for_each(&self, mut f: impl FnMut(&[usize], u64)) {
+        self.root.for_each(&mut f);
+    }
     /// Gets an iterator for the Hash Tree
     pub fn iter(&self) -> HashTreeIterator<N> {
         HashTreeIterator::new(self)
@@ -232,6 +261,17 @@ impl<const N: usize> HashTreeInternalNode<N> {
                 Node::Internal(hash_tree_internal_node) => hash_tree_internal_node.for_each_mut(f),
                 // Otherwise loop through the leaf node
                 Node::Leaf(hash_tree_leaf_node) => hash_tree_leaf_node.for_each_mut(f),
+            }
+        }
+    }
+    fn for_each(&self, f: &mut impl FnMut(&[usize], u64)) {
+        for n in &self.map {
+            let Some(n) = n else { continue };
+            match n.as_ref() {
+                // If the child is internal, then recursively call for_each_mut
+                Node::Internal(hash_tree_internal_node) => hash_tree_internal_node.for_each(f),
+                // Otherwise loop through the leaf node
+                Node::Leaf(hash_tree_leaf_node) => hash_tree_leaf_node.for_each(f),
             }
         }
     }
@@ -288,6 +328,11 @@ impl HashTreeLeafNode {
     /// Gets the element at v
     fn find(&self, v: &[usize]) -> Option<&(Vec<usize>, u64)> {
         self.0.iter().find(|v2| v2.0.eq(v))
+    }
+    fn for_each(&self, f: &mut impl FnMut(&[usize], u64)) {
+        for (v, n) in &self.0 {
+            f(v, *n);
+        }
     }
     /// Mutable For Each Loop
     fn for_each_mut(&mut self, f: &mut impl FnMut(&[usize], &mut u64)) {
