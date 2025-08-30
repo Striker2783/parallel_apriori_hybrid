@@ -10,7 +10,12 @@ pub struct TrieSet(Trie<bool>, usize);
 impl Convertable for TrieSet {
     fn to_vec(&mut self) -> Vec<u64> {
         let mut v = Vec::new();
+        let depth = self.0.depth();
+        v.push(depth as u64);
         self.0.to_vec(&mut v);
+        if v.is_empty() {
+            v.push(u64::MAX);
+        }
         v
     }
 
@@ -242,15 +247,6 @@ impl<T: Copy> TrieNode<T> {
 impl TrieNode<bool> {
     pub fn to_vec(&self, v: &mut Vec<u64>) {
         if self.children.is_empty() {
-            if v.is_empty() {
-                v.push(u64::MAX);
-                return;
-            }
-            let len = v.len();
-            let before = v[len - 1];
-            v[len - 1] = before
-                .checked_add(1 << 63)
-                .expect("Overflow occurred in converting to vector due to item id being > 2^63");
             return;
         }
         v.push(self.children.len() as u64);
@@ -260,29 +256,25 @@ impl TrieNode<bool> {
         }
     }
     pub fn add_from_vec(&mut self, v: &[u64]) {
-        self.add_from_vec_helper(&mut v.iter().cloned());
+        let mut iter = v.iter().cloned();
+        let depth = iter.next().unwrap();
+        self.add_from_vec_helper(depth, &mut iter);
     }
-    fn add_from_vec_helper(&mut self, v: &mut impl Iterator<Item = u64>) {
+    fn add_from_vec_helper(&mut self, depth: u64, v: &mut impl Iterator<Item = u64>) {
+        if depth == 0 {
+            self.value = true;
+            return;
+        }
         let size = v.next().unwrap();
         for _ in 0..size {
-            let mut next = v.next().unwrap();
-            let mut is_end = false;
-            if next >= 1 << 63 {
-                is_end = true;
-                next -= 1 << 63;
-            }
+            let next = v.next().unwrap();
             match self.children.get_mut(&(next as usize)) {
                 Some(child) => {
-                    child.value = is_end || child.value;
-                    if !is_end {
-                        child.add_from_vec_helper(v);
-                    }
+                    child.add_from_vec_helper(depth - 1, v);
                 }
                 None => {
-                    let mut child = TrieNode::new(is_end);
-                    if !is_end {
-                        child.add_from_vec_helper(v);
-                    }
+                    let mut child = TrieNode::new(false);
+                    child.add_from_vec_helper(depth - 1, v);
                     self.children.insert(next as usize, Box::new(child));
                 }
             };
@@ -380,6 +372,13 @@ impl<T> TrieNode<T> {
             }
         }
     }
+    pub fn depth(&self) -> usize {
+        if let Some((_, node)) = self.children.iter().next() {
+            node.depth() + 1
+        } else {
+            0
+        }
+    }
 }
 impl<T: Copy + Eq> TrieNode<T> {
     pub fn cleanup(&mut self, empty: T) {
@@ -394,6 +393,8 @@ impl<T: Copy + Eq> TrieNode<T> {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+
+    use parallel::traits::Convertable;
 
     use crate::storage::{AprioriCounter, AprioriFrequent};
 
@@ -471,12 +472,11 @@ mod tests {
         assert_eq!(trie.get(&[1, 3, 4]), Some(12));
         assert_eq!(trie.get(&[1, 3, 5]), Some(8));
 
-        let mut trie = Trie::new(false);
-        trie.insert(&[1, 2, 3], true);
-        trie.insert(&[1, 2, 4], true);
-        trie.insert(&[1, 3, 4], true);
-        let mut v = Vec::new();
-        trie.to_vec(&mut v);
+        let mut trie = TrieSet::new();
+        trie.insert(&[1, 2, 3]);
+        trie.insert(&[1, 2, 4]);
+        trie.insert(&[1, 3, 4]);
+        let v = trie.to_vec();
         let mut trie = Trie::new(false);
         trie.add_from_vec(&v);
         assert_eq!(trie.get(&[1, 2, 3]), Some(true));
