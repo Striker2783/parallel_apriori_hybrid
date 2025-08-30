@@ -69,8 +69,10 @@ impl TrieCounter {
 
 impl Convertable for TrieCounter {
     fn to_vec(&mut self) -> Vec<u64> {
+        let depth = self.0.depth();
         self.0.cleanup(0);
         let mut v = Vec::new();
+        v.push(depth as u64);
         self.0.to_vec(&mut v);
         v
     }
@@ -304,11 +306,7 @@ impl TrieNode<u64> {
     }
     pub fn to_vec(&self, v: &mut Vec<u64>) {
         if self.children.is_empty() {
-            v.push(
-                self.value
-                    .checked_add(1 << 63)
-                    .expect("Overflow occurred in converting to vector due to count being > 2^63"),
-            );
+            v.push(self.value);
             return;
         }
         v.push(self.children.len() as u64);
@@ -318,25 +316,28 @@ impl TrieNode<u64> {
         }
     }
     pub fn add_from_vec(&mut self, v: &[u64]) {
-        self.add_from_vec_helper(&mut v.iter().cloned());
+        let mut iter = v.iter().cloned();
+        let depth = iter.next().unwrap();
+        self.add_from_vec_helper(depth, &mut iter);
     }
-    fn add_from_vec_helper(&mut self, v: &mut impl Iterator<Item = u64>) {
+    fn add_from_vec_helper(&mut self, depth: u64, v: &mut impl Iterator<Item = u64>) {
+        if depth == 0 {
+            self.value += v.next().unwrap();
+            return;
+        }
         let size = v.next().unwrap();
         if size == 0 {
-            return;
-        } else if size >= 1 << 63 {
-            self.value += size - (1 << 63);
             return;
         }
         for _ in 0..size {
             let next = v.next().unwrap();
             match self.children.get_mut(&(next as usize)) {
                 Some(child) => {
-                    child.add_from_vec_helper(v);
+                    child.add_from_vec_helper(depth - 1, v);
                 }
                 None => {
                     let mut child = TrieNode::new(0);
-                    child.add_from_vec_helper(v);
+                    child.add_from_vec_helper(depth - 1, v);
                     self.children.insert(next as usize, Box::new(child));
                 }
             };
@@ -447,25 +448,23 @@ mod tests {
     }
     #[test]
     fn test_convertable() {
-        let mut trie = Trie::new(0u64);
-        trie.insert(&[1, 2, 3], 2);
-        trie.insert(&[1, 2, 4], 5);
-        trie.insert(&[1, 3, 4], 6);
-        let mut v = Vec::new();
-        trie.to_vec(&mut v);
+        let mut trie = TrieCounter::new();
+        trie.add(&[1, 2, 3], 2);
+        trie.add(&[1, 2, 4], 5);
+        trie.add(&[1, 3, 4], 6);
+        let v = trie.to_vec();
         let mut trie = Trie::new(0u64);
         trie.add_from_vec(&v);
         assert_eq!(trie.get(&[1, 2, 3]), Some(2));
         assert_eq!(trie.get(&[1, 2, 4]), Some(5));
         assert_eq!(trie.get(&[1, 3, 4]), Some(6));
 
-        let mut trie2 = Trie::new(0u64);
-        trie2.insert(&[1, 2, 3], 2);
-        trie2.insert(&[1, 2, 4], 5);
-        trie2.insert(&[1, 3, 4], 6);
-        trie2.insert(&[1, 3, 5], 8);
-        let mut v = Vec::new();
-        trie2.to_vec(&mut v);
+        let mut trie2 = TrieCounter::new();
+        trie2.add(&[1, 2, 3], 2);
+        trie2.add(&[1, 2, 4], 5);
+        trie2.add(&[1, 3, 4], 6);
+        trie2.add(&[1, 3, 5], 8);
+        let v = trie2.to_vec();
         trie.add_from_vec(&v);
         assert_eq!(trie.get(&[1, 2, 3]), Some(4));
         assert_eq!(trie.get(&[1, 2, 4]), Some(10));
