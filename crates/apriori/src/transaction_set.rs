@@ -5,7 +5,8 @@ use std::{fs::File, io::{BufRead, BufReader}, ops::{Deref, DerefMut}};
 #[derive(Debug, Default)]
 pub struct TransactionSet {
     pub transactions: Vec<Vec<usize>>,
-    pub num_items: usize
+    pub num_items: usize,
+    pub size: usize
 }
 // Dereferences to the underlying Vector
 impl Deref for TransactionSet {
@@ -24,7 +25,8 @@ impl DerefMut for TransactionSet {
 impl TransactionSet {
     /// Constructor
     pub fn new(transactions: Vec<Vec<usize>>, num_items: usize) -> Self {
-        Self { transactions, num_items }
+        let mut size = transactions.iter().map(|v| v.len()).sum();
+        Self { transactions, num_items, size }
     }
     /// Iterates over all the transactions
     pub fn iter(&self) -> impl Iterator<Item = &Vec<usize>> {
@@ -50,6 +52,6 @@ impl TransactionSet {
             max = (*items.iter().max().unwrap()).max(max);
             transactions.push(items);
         }
-        Self { transactions, num_items: max + 1 }
+        Self::new(transactions, max + 1)
     }
 }
