@@ -103,7 +103,7 @@ impl AprioriHybridContainer {
                 let mut trie: TrieCounter = trie.join_new();
                 let mut total = 0;
                 self.prev = trie.len();
-                if self.prev < prev && self.prev_total < 100_000_000 {
+                if (self.prev_total as usize) < data.size {
                     println!("SWITCH");
                     let mut transition = AprioriTransition::new();
                     let mut candidates = Candidates::new(self.sup);
