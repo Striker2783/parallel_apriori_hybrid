@@ -109,6 +109,9 @@ impl<T> Array2D<T> {
     pub fn len(&self) -> usize {
         self.0.len()
     }
+    pub fn is_empty(&self) -> bool {
+        self.0.len() == 0
+    }
 }
 impl Array2D<u64> {
     /// Increments at row, col

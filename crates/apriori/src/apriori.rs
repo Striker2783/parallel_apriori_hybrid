@@ -140,8 +140,8 @@ mod tests {
     }
     #[test]
     fn test_run_apriori() {
-        let mut set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
-        let a = AprioriRunner::new(&mut set, 2);
+        let set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
+        let a = AprioriRunner::new(&set, 2);
         let mut s = FrequentWriter::<TrieSet>::new();
         a.run(&mut s);
         let s = s.into_inner();
