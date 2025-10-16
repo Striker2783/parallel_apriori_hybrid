@@ -159,5 +159,6 @@ fn main() -> Result<(), MainError> {
             )?;
         }
     }
+    unsafe { mpi::ffi::MPI_Finalize() };
     Ok(())
 }
