@@ -1,4 +1,4 @@
-use ahash::{AHashMap, HashSet};
+use ahash::AHashMap;
 
 pub trait AprioriCounter {
     fn increment(&mut self, v: &[usize]) -> bool;

@@ -341,6 +341,7 @@ impl HashTreeLeafNode {
         }
     }
     /// Gets the mutable element at v
+    #[allow(dead_code)]
     fn find_mut(&mut self, v: &[usize]) -> Option<&mut (Vec<usize>, u64)> {
         self.0.iter_mut().find(|v2| v2.0.eq(v))
     }
@@ -447,7 +448,7 @@ impl<'a, const N: usize> HashTreeIterator<'a, N> {
 }
 
 impl<const N: usize> AprioriCounting for AprioriHashTreeGeneric<N> {
-    fn count_fn(&mut self, v: &[usize], n: usize, mut f: impl FnMut(&[usize])) {
+    fn count_fn(&mut self, v: &[usize], _: usize, mut f: impl FnMut(&[usize])) {
         let mut vec = Vec::new();
         self.root.count_fn_helper(v, &mut vec, &mut f);
     }
