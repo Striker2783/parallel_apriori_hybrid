@@ -9,10 +9,10 @@ use clap::*;
 use count_distribution::hybridrunner::CountDistributionHybrid;
 use count_distribution::runner::CountDistribution;
 use parallel::traits::ParallelRun;
-use std::fs::File;
-use std::io::BufWriter;
-use std::path::PathBuf;
-use std::time::Instant;
+use std::fs::{File, OpenOptions};
+use std::io::{BufWriter, Write as IOWrite};
+use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 #[derive(Parser)]
 pub struct Args {
@@ -23,6 +23,8 @@ pub struct Args {
     time: bool,
     #[arg(short, long)]
     output: Option<PathBuf>,
+    #[arg(long)]
+    csv: Option<PathBuf>,
 }
 #[derive(Debug, Clone, ValueEnum)]
 pub enum Algorithms {
@@ -63,6 +65,7 @@ impl Write for EmptyWriter {
 pub enum MainError {
     InvalidInputFile(std::io::Error),
     InvalidOutputFile(std::io::Error),
+    InvalidOutputCSV(std::io::Error),
 }
 
 fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
@@ -97,10 +100,27 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
     }
 }
 
+fn output_csv(file: &Path, percentage: f64, duration: &Duration) -> Result<(), MainError> {
+    let out = OpenOptions::new()
+        .append(true)
+        .create(true)
+        .open(file)
+        .map_err(MainError::InvalidOutputCSV)?;
+    let mut writer = BufWriter::new(out);
+    let mut s = String::new();
+    s.push_str(&percentage.to_string());
+    s.push(',');
+    s.push_str(&duration.as_secs_f64().to_string());
+    s.push('\n');
+    let _ = IOWrite::write(&mut writer, s.as_bytes());
+    Ok(())
+}
+
 fn main() -> Result<(), MainError> {
     let a = Args::parse();
     let file = File::open(&a.file).map_err(MainError::InvalidInputFile)?;
     let data = TransactionSet::from_dat(file);
+    let size = data.len();
     let before = Instant::now();
     match &a.output {
         Some(f) => {
@@ -114,6 +134,15 @@ fn main() -> Result<(), MainError> {
             aa(input, &a);
         }
     };
-    println!("Time Taken: {:?}", before.elapsed());
+    if a.time {
+        println!("Time Taken: {:?}", before.elapsed());
+    }
+    if let Some(p) = a.csv {
+        output_csv(
+            &p,
+            (a.support_count as f64) / (size as f64),
+            &before.elapsed(),
+        )?;
+    }
     Ok(())
 }
