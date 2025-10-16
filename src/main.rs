@@ -8,10 +8,13 @@ use clap::Parser;
 use clap::*;
 use count_distribution::hybridrunner::CountDistributionHybrid;
 use count_distribution::runner::CountDistribution;
+use mpi::environment::{self, Universe};
+use mpi::traits::Communicator;
 use parallel::traits::ParallelRun;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write as IOWrite};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 #[derive(Parser)]
@@ -68,6 +71,16 @@ pub enum MainError {
     InvalidOutputCSV(std::io::Error),
 }
 
+static MPI_UNIVERSE: OnceLock<Universe> = OnceLock::new();
+
+pub fn get_universe() -> &'static Universe {
+    MPI_UNIVERSE.get_or_init(|| environment::initialize().expect("Failed to initialize MPI"))
+}
+
+pub fn mpi_initialized() -> bool {
+    MPI_UNIVERSE.get().is_some()
+}
+
 fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
     match v.algorithm {
         Algorithms::Apriori => {
@@ -75,9 +88,9 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             runner.run(&mut input.out);
         }
         Algorithms::CountDistribution => {
-            let universe = mpi::initialize().unwrap();
+            let universe = get_universe();
             let runner = CountDistribution::new(&input.data, input.support_count, &mut input.out);
-            runner.run(&universe);
+            runner.run(universe);
         }
         Algorithms::AprioriTID => {
             let runner = AprioriTIDRunner2::new(&input.data, input.support_count);
@@ -88,10 +101,10 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) {
             runner.run(&mut input.out);
         }
         Algorithms::CountDistributionHybrid => {
-            let universe = mpi::initialize().unwrap();
+            let universe = get_universe();
             let runner =
                 CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
-            runner.run(&universe);
+            runner.run(universe);
         }
         Algorithms::AprioriTrie => {
             let runner = AprioriTrie::new(input.data, input.support_count);
@@ -138,11 +151,13 @@ fn main() -> Result<(), MainError> {
         println!("Time Taken: {:?}", before.elapsed());
     }
     if let Some(p) = a.csv {
-        output_csv(
-            &p,
-            (a.support_count as f64) / (size as f64),
-            &before.elapsed(),
-        )?;
+        if !mpi_initialized() || (mpi_initialized() && get_universe().world().rank() == 0) {
+            output_csv(
+                &p,
+                (a.support_count as f64) / (size as f64),
+                &before.elapsed(),
+            )?;
+        }
     }
     Ok(())
 }
