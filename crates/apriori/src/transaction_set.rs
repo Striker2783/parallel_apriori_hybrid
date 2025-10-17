@@ -37,6 +37,15 @@ impl TransactionSet {
             size,
         }
     }
+    pub fn add_transaction(&mut self, transaction: Vec<usize>) {
+        if transaction.is_empty() {
+            return;
+        }
+        self.size += transaction.len();
+        let max = *transaction.iter().max().unwrap();
+        self.transactions.push(transaction);
+        self.num_items = self.num_items.max(max + 1);
+    }
     pub fn partition(&self, ranks: usize) -> TransactionSetPartitioner {
         TransactionSetPartitioner::new(ranks, self)
     }
@@ -74,7 +83,32 @@ impl TransactionSet {
         Self::new(transactions, max + 1)
     }
 }
+impl parallel::traits::Convertable for TransactionSet {
+    fn to_vec(&mut self) -> Vec<u64> {
+        let mut v = Vec::new();
+        for vec in self.transactions.iter() {
+            for &n in vec {
+                v.push(n as u64);
+            }
+            v.push(u64::MAX);
+        }
+        v.pop();
+        v
+    }
 
+    fn add_from_vec(&mut self, v: &[u64]) {
+        let mut vec = Vec::new();
+        for &n in v {
+            if n == u64::MAX {
+                self.add_transaction(vec.clone());
+                vec = Vec::new();
+                continue;
+            }
+            vec.push(n as usize);
+        }
+        self.add_transaction(vec.clone());
+    }
+}
 pub struct TransactionSetPartitioner<'a> {
     size: usize,
     original: &'a TransactionSet,
@@ -111,16 +145,31 @@ impl Iterator for TransactionSetPartitioner<'_> {
 
 #[cfg(test)]
 mod tests {
+    use parallel::traits::Convertable;
+
     use crate::transaction_set::TransactionSet;
 
     #[test]
     fn test_paritioning() {
         let v = vec![vec![1, 2, 3], vec![2, 3, 4], vec![3, 4, 5]];
-        let t = TransactionSet::new(v, 5);
+        let t = TransactionSet::new(v, 6);
         let mut a = t.partition(3);
         assert_eq!(a.next().unwrap().transactions, vec![vec![1, 2, 3]]);
         assert_eq!(a.next().unwrap().transactions, vec![vec![2, 3, 4]]);
         assert_eq!(a.next().unwrap().transactions, vec![vec![3, 4, 5]]);
         assert!(a.next().is_none());
+    }
+    #[test]
+    fn test_convertable() {
+        let v = vec![vec![1, 2, 3], vec![2, 3, 4], vec![3, 4, 5]];
+        let mut t = TransactionSet::new(v, 6);
+        let mut t2 = TransactionSet::new(vec![], 0);
+        assert!(t2.transactions.is_empty());
+        assert_eq!(t2.num_items, 0);
+        
+        let t_v = t.to_vec();
+        t2.add_from_vec(&t_v);
+        assert_eq!(t2.num_items, 6);
+        assert_eq!(t.transactions, t2.transactions);
     }
 }
