@@ -1,4 +1,4 @@
-use std::{fs::File, io::{BufRead, BufReader}, ops::{Deref, DerefMut}};
+use std::{fs::{File, OpenOptions}, io::{BufRead, BufReader}, ops::{Deref, DerefMut}, path::Path};
 
 /// A 0-indexed item set
 /// A Transactional Database
@@ -25,12 +25,16 @@ impl DerefMut for TransactionSet {
 impl TransactionSet {
     /// Constructor
     pub fn new(transactions: Vec<Vec<usize>>, num_items: usize) -> Self {
-        let mut size = transactions.iter().map(|v| v.len()).sum();
+        let size = transactions.iter().map(|v| v.len()).sum();
         Self { transactions, num_items, size }
     }
     /// Iterates over all the transactions
     pub fn iter(&self) -> impl Iterator<Item = &Vec<usize>> {
         self.transactions.iter()
+    }
+    pub fn from_path(path: &Path) -> Result<Self, std::io::Error> {
+        let file = OpenOptions::new().read(true).open(path)?;
+        Ok(Self::from_dat(file))
     }
     /// Constructs the set from a .dat file
     /// .dat file is a file with one transaction per line.
