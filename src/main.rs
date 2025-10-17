@@ -105,9 +105,8 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
         }
         Algorithms::CountDistributionHybrid => {
             let universe = get_universe();
-            let data = TransactionSet::from_path(&input.data)?;
             let runner =
-                CountDistributionHybrid::new(&data, input.support_count, &mut input.out);
+                CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
             runner.run(universe);
         }
         Algorithms::AprioriTrie => {

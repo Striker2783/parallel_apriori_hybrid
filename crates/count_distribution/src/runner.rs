@@ -46,7 +46,12 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
                     .send(&data_iter.next().unwrap().to_vec());
             }
 
-            let mut a = MainRunner::new(self.sup, self.writer, universe, MainHelper::new_from_transaction_set(first_data));
+            let mut a = MainRunner::new(
+                self.sup,
+                self.writer,
+                universe,
+                MainHelper::new_from_transaction_set(first_data),
+            );
             let temp = Instant::now();
             let b = a.preprocess(&data);
             println!("Preprocess {:?}", temp.elapsed());
