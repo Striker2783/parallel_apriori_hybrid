@@ -90,8 +90,7 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
         }
         Algorithms::CountDistribution => {
             let universe = get_universe();
-            let data = TransactionSet::from_path(&input.data)?;
-            let runner = CountDistribution::new(&data, input.support_count, &mut input.out);
+            let runner = CountDistribution::new(&input.data, input.support_count, &mut input.out);
             runner.run(universe);
         }
         Algorithms::AprioriTID => {

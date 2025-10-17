@@ -7,11 +7,17 @@ use std::{
 
 /// A 0-indexed item set
 /// A Transactional Database
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct TransactionSet {
     pub transactions: Vec<Vec<usize>>,
     pub num_items: usize,
     pub size: usize,
+}
+
+impl Default for TransactionSet {
+    fn default() -> Self {
+        Self::new(Vec::new(), 0)
+    }
 }
 // Dereferences to the underlying Vector
 impl Deref for TransactionSet {
