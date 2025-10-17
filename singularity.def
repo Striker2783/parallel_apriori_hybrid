@@ -20,6 +20,6 @@ Stage: final
 
 %post
     apt update
-    apt install -y openmpi-bin
+    apt install -y openmpi-bin valgrind
 
 %environment
