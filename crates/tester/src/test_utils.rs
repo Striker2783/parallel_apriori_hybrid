@@ -1,8 +1,8 @@
 use std::{
     collections::HashSet,
-    fs::File,
+    fs::{File, OpenOptions},
     io::{BufRead, BufReader},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use apriori::transaction_set::TransactionSet;
@@ -51,13 +51,21 @@ pub fn test_generic_with_option<T: AsRef<Path>>(
     test_files: T,
     f: impl Fn(TransactionSet, u64) -> Option<Solved>,
 ) {
+    test_generic_with_paths(test_files, |path, sup| {
+        let data = TransactionSet::from_path(&path).unwrap();
+        f(data, sup)
+    });
+}
+
+pub fn test_generic_with_paths<T: AsRef<Path>>(
+    test_files: T,
+    f: impl Fn(PathBuf, u64) -> Option<Solved>,
+) {
     let database = test_files.as_ref().join(DATABASE);
     let solved = test_files.as_ref().join(SOLVED);
     assert!(database.exists(), "Database file does not exist");
-    let data = File::open(database).unwrap();
-    let t = TransactionSet::from_dat(data);
 
-    let s = f(t, 10);
+    let s = f(database.clone(), 10);
     assert!(solved.exists(), "Solved file does not exist");
     if s.is_none() {
         return;

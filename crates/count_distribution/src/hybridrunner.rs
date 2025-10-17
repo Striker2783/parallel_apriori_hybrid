@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use apriori::{
     apriori::apriori_pass_two_counter,
     array2d::AprioriP2Counter,
@@ -16,13 +18,13 @@ use parallel::traits::{Convertable, ParallelRun};
 use crate::main_thread::{MainRunner, ParallelCounting};
 
 pub struct CountDistributionHybrid<'a, T: Write> {
-    data: &'a TransactionSet,
+    data: &'a Path,
     sup: u64,
     writer: &'a mut T,
 }
 
 impl<'a, T: Write> CountDistributionHybrid<'a, T> {
-    pub fn new(data: &'a TransactionSet, sup: u64, writer: &'a mut T) -> Self {
+    pub fn new(data: &'a Path, sup: u64, writer: &'a mut T) -> Self {
         Self { data, sup, writer }
     }
 }
@@ -33,16 +35,28 @@ impl<T: Write> ParallelRun for CountDistributionHybrid<'_, T> {
         assert!(size > 1, "Rank must be at least 2");
         let rank = universe.world().rank();
         if rank == 0 {
+            let data = TransactionSet::from_path(self.data).unwrap();
+            let world = universe.world();
+
+            let mut data_iter = data.partition(world.size() as usize);
+            let first_data = data_iter.next().unwrap();
+
+            for i in 1..world.size() {
+                world
+                    .process_at_rank(i)
+                    .send(&data_iter.next().unwrap().to_vec());
+            }
+
             let mut a = MainRunner::new(
                 self.sup,
                 self.writer,
                 universe,
-                MainHelper::new(self.data, universe, self.sup),
+                MainHelper::new_from_transaction_set(first_data, self.sup),
             );
-            let b = a.preprocess(self.data);
+            let b = a.preprocess(&data);
             a.run(b);
         } else {
-            let mut a = HelperRunner::new(self.data, universe, self.sup);
+            let mut a = HelperRunner::new(universe, self.sup);
             a.run();
         }
     }
@@ -54,21 +68,25 @@ struct MainHelper {
     sup: u64,
 }
 impl MainHelper {
-    pub fn new(data: &TransactionSet, uni: &Universe, sup: u64) -> Self {
+    pub fn new(uni: &Universe, sup: u64) -> Self {
         let world = uni.world();
-        let count = data.len() / (world.size()) as usize;
-        let thread = world.rank() as usize;
-        let slice = if world.rank() == world.size() - 1 {
-            &data.transactions[(count * thread)..data.len()]
-        } else {
-            &data[(count * thread)..(count * (thread + 1))]
-        };
-        let data = TransactionSet::new(slice.to_vec(), data.num_items);
+
+        let mut data = TransactionSet::default();
+        let received: (Vec<u64>, mpi::point_to_point::Status) =
+            world.process_at_rank(0).receive_vec();
+        data.add_from_vec(&received.0);
 
         Self {
             data,
             container: AprioriHybridContainer::new(TrieCounter::new(), 0),
             sup,
+        }
+    }
+    pub fn new_from_transaction_set(data: TransactionSet, sup: u64) -> Self {
+        Self {
+            data,
+            container: AprioriHybridContainer::new(TrieCounter::new(), 0),
+            sup
         }
     }
 }
@@ -113,8 +131,8 @@ struct HelperRunner<'a> {
 }
 
 impl<'a> HelperRunner<'a> {
-    pub fn new(data: &TransactionSet, uni: &'a Universe, sup: u64) -> Self {
-        let counter = MainHelper::new(data, uni, sup);
+    pub fn new(uni: &'a Universe, sup: u64) -> Self {
+        let counter = MainHelper::new(uni, sup);
         Self { counter, uni }
     }
     fn run(&mut self) {
