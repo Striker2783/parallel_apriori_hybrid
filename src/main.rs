@@ -46,14 +46,16 @@ pub struct Inputs<T: Write> {
     data: PathBuf,
     support_count: u64,
     out: T,
+    guard: bool,
 }
 
 impl<T: Write> Inputs<T> {
-    pub fn new(data: PathBuf, support_count: u64, out: T) -> Self {
+    pub fn new(data: PathBuf, support_count: u64, out: T, guard: bool) -> Self {
         Self {
             data,
             support_count,
             out,
+            guard,
         }
     }
 }
@@ -75,6 +77,15 @@ pub enum MainError {
 }
 
 static MPI_UNIVERSE: OnceLock<Universe> = OnceLock::new();
+static GUARD: OnceLock<ProfilerGuard> = OnceLock::new();
+
+pub fn get_guard() -> &'static ProfilerGuard<'static> {
+    GUARD.get_or_init(|| ProfilerGuard::new(100).unwrap())
+}
+
+pub fn guard_initialized() -> bool {
+    GUARD.get().is_some()
+}
 
 pub fn get_universe() -> &'static Universe {
     MPI_UNIVERSE.get_or_init(|| environment::initialize().expect("Failed to initialize MPI"))
@@ -87,32 +98,50 @@ pub fn mpi_initialized() -> bool {
 fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
     match v.algorithm {
         Algorithms::Apriori => {
+            if input.guard {
+                get_guard();
+            }
             let data = TransactionSet::from_path(&input.data)?;
             let runner = AprioriRunner::new(&data, input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::CountDistribution => {
             let universe = get_universe();
+            if input.guard {
+                get_guard();
+            }
             let runner = CountDistribution::new(&input.data, input.support_count, &mut input.out);
             runner.run(universe);
         }
         Algorithms::AprioriTID => {
+            if input.guard {
+                get_guard();
+            }
             let data = TransactionSet::from_path(&input.data)?;
             let runner = AprioriTIDRunner2::new(&data, input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::AprioriHybrid => {
+            if input.guard {
+                get_guard();
+            }
             let mut data = TransactionSet::from_path(&input.data)?;
             let runner = AprioriHybridRunner::new(&mut data, input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::CountDistributionHybrid => {
             let universe = get_universe();
+            if input.guard {
+                get_guard();
+            }
             let runner =
                 CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
             runner.run(universe);
         }
         Algorithms::AprioriTrie => {
+            if input.guard {
+                get_guard();
+            }
             let runner =
                 AprioriTrie::new(TransactionSet::from_path(&input.data)?, input.support_count);
             runner.run(&mut input.out);
@@ -138,19 +167,25 @@ fn output_csv(file: &Path, duration: &Duration) -> Result<(), MainError> {
 fn main() -> Result<(), MainError> {
     let a = Args::parse();
     let before = Instant::now();
-    let mut guard = None;
-    if a.profiler.is_some() {
-        guard = Some(ProfilerGuard::new(100).unwrap());
-    }
     match &a.output {
         Some(f) => {
             let out = File::create(f).map_err(MainError::InvalidOutputFile)?;
             let writer = BufWriter::new(out);
-            let input = Inputs::new(a.file.clone(), a.support_count, writer);
+            let input = Inputs::new(
+                a.file.clone(),
+                a.support_count,
+                writer,
+                a.profiler.is_some(),
+            );
             aa(input, &a).unwrap();
         }
         None => {
-            let input = Inputs::new(a.file.clone(), a.support_count, EmptyWriter::new());
+            let input = Inputs::new(
+                a.file.clone(),
+                a.support_count,
+                EmptyWriter::new(),
+                a.profiler.is_some(),
+            );
             aa(input, &a).unwrap();
         }
     };
@@ -162,10 +197,21 @@ fn main() -> Result<(), MainError> {
             output_csv(&p, &before.elapsed())?;
         }
     }
-    if let (Some(flamegraph), Some(guard)) = (a.profiler, guard) {
-        if let Ok(report) = guard.report().build() {
-            let file = std::fs::File::create(&flamegraph).unwrap();
-            report.flamegraph(file).unwrap();
+    if let Some(mut flamegraph) = a.profiler {
+        if guard_initialized() {
+            if let Ok(report) = get_guard().report().build() {
+                if mpi_initialized() {
+                    let mut stem = flamegraph.file_stem().unwrap().to_os_string();
+                    stem.push(get_universe().world().rank().to_string());
+                    stem.push(".");
+                    stem.push(flamegraph.extension().unwrap());
+                    flamegraph.set_file_name(stem);
+                }
+                let file = std::fs::File::create(&flamegraph).unwrap();
+                report.flamegraph(file).unwrap();
+            }
+        } else {
+            println!("Guard did not intialize");
         }
     }
     if mpi_initialized() {
