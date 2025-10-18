@@ -11,6 +11,7 @@ use count_distribution::runner::CountDistribution;
 use mpi::environment::{self, Universe};
 use mpi::traits::Communicator;
 use parallel::traits::ParallelRun;
+use pprof::ProfilerGuard;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write as IOWrite};
 use std::path::{Path, PathBuf};
@@ -28,6 +29,8 @@ pub struct Args {
     output: Option<PathBuf>,
     #[arg(long)]
     csv: Option<PathBuf>,
+    #[arg(long)]
+    profiler: Option<PathBuf>,
 }
 #[derive(Debug, Clone, ValueEnum)]
 pub enum Algorithms {
@@ -110,7 +113,8 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
             runner.run(universe);
         }
         Algorithms::AprioriTrie => {
-            let runner = AprioriTrie::new(TransactionSet::from_path(&input.data)?, input.support_count);
+            let runner =
+                AprioriTrie::new(TransactionSet::from_path(&input.data)?, input.support_count);
             runner.run(&mut input.out);
         }
     }
@@ -134,6 +138,10 @@ fn output_csv(file: &Path, duration: &Duration) -> Result<(), MainError> {
 fn main() -> Result<(), MainError> {
     let a = Args::parse();
     let before = Instant::now();
+    let mut guard = None;
+    if a.profiler.is_some() {
+        guard = Some(ProfilerGuard::new(100).unwrap());
+    }
     match &a.output {
         Some(f) => {
             let out = File::create(f).map_err(MainError::InvalidOutputFile)?;
@@ -151,10 +159,13 @@ fn main() -> Result<(), MainError> {
     }
     if let Some(p) = a.csv {
         if !mpi_initialized() || (mpi_initialized() && get_universe().world().rank() == 0) {
-            output_csv(
-                &p,
-                &before.elapsed(),
-            )?;
+            output_csv(&p, &before.elapsed())?;
+        }
+    }
+    if let (Some(flamegraph), Some(guard)) = (a.profiler, guard) {
+        if let Ok(report) = guard.report().build() {
+            let file = std::fs::File::create(&flamegraph).unwrap();
+            report.flamegraph(file).unwrap();
         }
     }
     if mpi_initialized() {
