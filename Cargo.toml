@@ -14,6 +14,7 @@ parallel = { path = "crates/parallel" }
 clap = { version = "4.5.38", features = ["derive"] }
 apriori_tid = { path = "crates/apriori_tid" }
 tester = { path = "crates/tester" }
+pprof = {version = "0.15.0", features = ["flamegraph"]}
 
 [workspace]
 members = [
