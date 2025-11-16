@@ -15,7 +15,7 @@ use pprof::ProfilerGuard;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write as IOWrite};
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, Instant};
 
 #[derive(Parser)]
@@ -102,7 +102,7 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
                 get_guard();
             }
             let data = TransactionSet::from_path(&input.data)?;
-            let runner = AprioriRunner::new(&data, input.support_count);
+            let runner = AprioriRunner::new(Arc::new(data), input.support_count);
             runner.run(&mut input.out);
         }
         Algorithms::CountDistribution => {

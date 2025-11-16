@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use std::time::Instant;
 
 use crate::array2d::AprioriP2Counter;
@@ -24,20 +25,20 @@ pub fn apriori_pass_one(data: &TransactionSet, sup: u64) -> Vec<usize> {
         .collect()
 }
 
-pub struct AprioriRunner<'a> {
-    data: &'a TransactionSet,
+pub struct AprioriRunner {
+    data: Arc<TransactionSet>,
     sup: u64,
 }
 
-impl Apriori for AprioriRunner<'_> {
+impl Apriori for AprioriRunner {
     fn run<T: Write>(self, out: &mut T) {
-        let p1 = apriori_pass_one(self.data, self.sup);
+        let p1 = apriori_pass_one(self.data.as_ref(), self.sup);
         p1.iter().for_each(|&n| out.write_set(&[n]));
-        let mut prev: TrieSet = apriori_pass_two(self.data, self.sup, &p1);
+        let mut prev: TrieSet = apriori_pass_two(self.data.as_ref(), self.sup, &p1);
         prev.for_each(|v| out.write_set(v));
         for i in 3.. {
             let prev_time = Instant::now();
-            prev = apriori_pass_three::<_, TrieCounter>(self.data, &prev, i, self.sup);
+            prev = apriori_pass_three::<_, TrieCounter>(self.data.as_ref(), &prev, i, self.sup);
             println!("{i} {:?}", prev_time.elapsed());
             if prev.is_empty() {
                 break;
@@ -49,8 +50,8 @@ impl Apriori for AprioriRunner<'_> {
     }
 }
 
-impl<'a> AprioriRunner<'a> {
-    pub fn new(data: &'a TransactionSet, sup: u64) -> Self {
+impl AprioriRunner {
+    pub fn new(data: Arc<TransactionSet>, sup: u64) -> Self {
         Self { data, sup }
     }
 }
@@ -98,6 +99,8 @@ pub fn apriori_pass_three<
 #[cfg(test)]
 mod tests {
 
+    use std::sync::Arc;
+
     use crate::{
         apriori::{apriori_pass_one, apriori_pass_three, apriori_pass_two},
         start::{Apriori, FrequentWriter},
@@ -141,7 +144,8 @@ mod tests {
     #[test]
     fn test_run_apriori() {
         let set = TransactionSet::new(vec![vec![1, 2, 3], vec![1, 2, 3]], 4);
-        let a = AprioriRunner::new(&set, 2);
+        let set = Arc::new(set);
+        let a = AprioriRunner::new(Arc::clone(&set), 2);
         let mut s = FrequentWriter::<TrieSet>::new();
         a.run(&mut s);
         let s = s.into_inner();
