@@ -1,4 +1,8 @@
-use std::{path::Path, time::Instant};
+use std::{
+    path::Path,
+    sync::{Arc, Mutex},
+    time::Instant,
+};
 
 use apriori::{
     apriori::apriori_pass_two_counter,
@@ -16,19 +20,19 @@ use parallel::traits::{Convertable, ParallelRun};
 
 use crate::main_thread::{MainRunner, ParallelCounting};
 
-pub struct CountDistribution<'a, T: Write> {
+pub struct CountDistribution<'a> {
     data: &'a Path,
     sup: u64,
-    writer: &'a mut T,
+    writer: Arc<Mutex<dyn Write>>,
 }
 
-impl<'a, T: Write> CountDistribution<'a, T> {
-    pub fn new(data: &'a Path, sup: u64, writer: &'a mut T) -> Self {
+impl<'a> CountDistribution<'a> {
+    pub fn new(data: &'a Path, sup: u64, writer: Arc<Mutex<dyn Write>>) -> Self {
         Self { data, sup, writer }
     }
 }
 
-impl<T: Write> ParallelRun for CountDistribution<'_, T> {
+impl ParallelRun for CountDistribution<'_> {
     fn run(self, universe: &Universe) {
         let size = universe.world().size();
         assert!(size > 1, "Rank must be at least 2");
@@ -50,7 +54,7 @@ impl<T: Write> ParallelRun for CountDistribution<'_, T> {
                 self.sup,
                 self.writer,
                 universe,
-                MainHelper::new_from_transaction_set(first_data),
+                Arc::new(Mutex::new(MainHelper::new_from_transaction_set(first_data))),
             );
             let temp = Instant::now();
             let b = a.preprocess(&data);

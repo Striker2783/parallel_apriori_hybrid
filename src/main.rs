@@ -15,7 +15,7 @@ use pprof::ProfilerGuard;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write as IOWrite};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 #[derive(Parser)]
@@ -42,15 +42,15 @@ pub enum Algorithms {
     AprioriTrie,
 }
 
-pub struct Inputs<T: Write> {
+pub struct Inputs {
     data: PathBuf,
     support_count: u64,
-    out: T,
+    out: Arc<Mutex<dyn Write>>,
     guard: bool,
 }
 
-impl<T: Write> Inputs<T> {
-    pub fn new(data: PathBuf, support_count: u64, out: T, guard: bool) -> Self {
+impl Inputs {
+    pub fn new(data: PathBuf, support_count: u64, out: Arc<Mutex<dyn Write>>, guard: bool) -> Self {
         Self {
             data,
             support_count,
@@ -95,7 +95,7 @@ pub fn mpi_initialized() -> bool {
     MPI_UNIVERSE.get().is_some()
 }
 
-fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
+fn aa(mut input: Inputs, v: &Args) -> Result<(), std::io::Error> {
     match v.algorithm {
         Algorithms::Apriori => {
             if input.guard {
@@ -103,14 +103,15 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
             }
             let data = TransactionSet::from_path(&input.data)?;
             let runner = AprioriRunner::new(Arc::new(data), input.support_count);
-            runner.run(&mut input.out);
+            let mut guard = input.out.lock().unwrap();
+            runner.run(&mut guard);
         }
         Algorithms::CountDistribution => {
             let universe = get_universe();
             if input.guard {
                 get_guard();
             }
-            let runner = CountDistribution::new(&input.data, input.support_count, &mut input.out);
+            let runner = CountDistribution::new(&input.data, input.support_count, input.out);
             runner.run(universe);
         }
         Algorithms::AprioriTID => {
@@ -119,7 +120,7 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
             }
             let data = TransactionSet::from_path(&input.data)?;
             let runner = AprioriTIDRunner2::new(&data, input.support_count);
-            runner.run(&mut input.out);
+            runner.run(&mut input.out.lock().unwrap().into());
         }
         Algorithms::AprioriHybrid => {
             if input.guard {
@@ -127,15 +128,14 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
             }
             let mut data = TransactionSet::from_path(&input.data)?;
             let runner = AprioriHybridRunner::new(&mut data, input.support_count);
-            runner.run(&mut input.out);
+            runner.run(&mut input.out.lock().unwrap().into());
         }
         Algorithms::CountDistributionHybrid => {
             let universe = get_universe();
             if input.guard {
                 get_guard();
             }
-            let runner =
-                CountDistributionHybrid::new(&input.data, input.support_count, &mut input.out);
+            let runner = CountDistributionHybrid::new(&input.data, input.support_count, input.out);
             runner.run(universe);
         }
         Algorithms::AprioriTrie => {
@@ -144,7 +144,7 @@ fn aa<T: Write>(mut input: Inputs<T>, v: &Args) -> Result<(), std::io::Error> {
             }
             let runner =
                 AprioriTrie::new(TransactionSet::from_path(&input.data)?, input.support_count);
-            runner.run(&mut input.out);
+            runner.run(&mut input.out.lock().unwrap().into());
         }
     }
     Ok(())
@@ -171,6 +171,7 @@ fn main() -> Result<(), MainError> {
         Some(f) => {
             let out = File::create(f).map_err(MainError::InvalidOutputFile)?;
             let writer = BufWriter::new(out);
+            let writer = Arc::new(Mutex::new(writer));
             let input = Inputs::new(
                 a.file.clone(),
                 a.support_count,
@@ -183,7 +184,7 @@ fn main() -> Result<(), MainError> {
             let input = Inputs::new(
                 a.file.clone(),
                 a.support_count,
-                EmptyWriter::new(),
+                Arc::new(Mutex::new(EmptyWriter::new())),
                 a.profiler.is_some(),
             );
             aa(input, &a).unwrap();

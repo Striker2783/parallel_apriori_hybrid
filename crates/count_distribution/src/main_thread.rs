@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{sync::{Arc, Mutex}, time::Instant};
 
 use apriori::{
     apriori::apriori_pass_one,
@@ -21,15 +21,15 @@ pub trait ParallelCounting {
     fn frequent(&mut self, sup: u64) -> TrieSet;
 }
 
-pub(crate) struct MainRunner<'a, T: Write, U: ParallelCounting> {
+pub(crate) struct MainRunner<'a> {
     sup: u64,
-    writer: &'a mut T,
+    writer: Arc<Mutex<dyn Write + 'a>>,
     uni: &'a Universe,
-    counter: U,
+    counter: Arc<Mutex<dyn ParallelCounting + 'a>>,
 }
 
-impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
-    pub fn new(sup: u64, writer: &'a mut T, uni: &'a Universe, counter: U) -> Self {
+impl<'a> MainRunner<'a> {
+    pub fn new(sup: u64, writer: Arc<Mutex<dyn Write>>, uni: &'a Universe, counter: Arc<Mutex<dyn ParallelCounting>>) -> Self {
         Self {
             sup,
             writer,
@@ -48,7 +48,7 @@ impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
             self.uni.world().process_at_rank(i).send(&p1set);
         }
         let mut combined = AprioriP2Counter::new(p1);
-        combined.add_from_vec(&self.counter.count_2(p1));
+        combined.add_from_vec(&self.counter.lock().unwrap().count_2(p1));
         for _ in 1..self.uni.world().size() {
             let (v, _) = self.uni.world().any_process().receive_vec();
             combined.add_from_vec(&v);
@@ -62,9 +62,11 @@ impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
         }
         let prev_time = Instant::now();
         let mut p = self.pass_two(&p1);
-        p.for_each(|v| self.writer.write_set(v));
+        let mut writer = self.writer.lock().unwrap();
+        p.for_each(|v| writer.write_set(v));
         println!("2 {:?}", prev_time.elapsed());
         if p.is_empty() {
+            drop(writer);
             self.end();
             return;
         }
@@ -74,25 +76,29 @@ impl<'a, T: Write, U: ParallelCounting> MainRunner<'a, T, U> {
             for i in 1..self.uni.world().size() {
                 self.uni.world().process_at_rank(i).send(&converted);
             }
-            self.counter.count(&p, i);
+            let mut counter = self.counter.lock().unwrap();
+            counter.count(&p, i);
             for _ in 1..self.uni.world().size() {
                 let (v, _) = self.uni.world().any_process().receive_vec();
-                self.counter.add(&v);
+                counter.add(&v);
             }
-            p = self.counter.frequent(self.sup);
+            p = counter.frequent(self.sup);
             println!("{i} {:?}", prev_time.elapsed());
             if p.is_empty() {
                 break;
             }
+            let mut writer = self.writer.lock().unwrap();
             p.for_each(|v| {
-                self.writer.write_set(v);
+                writer.write_set(v);
             });
         }
+        drop(writer);
         self.end();
     }
     pub fn preprocess(&mut self, data: &TransactionSet) -> Vec<usize> {
         let p = apriori_pass_one(data, self.sup);
-        p.iter().for_each(|&n| self.writer.write_set(&[n]));
+        let mut writer = self.writer.lock().unwrap();
+        p.iter().for_each(|&n| writer.write_set(&[n]));
         p
     }
 }
